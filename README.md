@@ -60,9 +60,10 @@ pnpm --filter web dev
 
 - ✅ Smart contracts implemented + 30 Foundry tests passing
 - ✅ Reactive Omni integration (`AbstractReactive`/`AbstractCallback`, `requestCallbackV_1_0`)
-- ✅ Next.js frontend: landing, dashboard, vault, policies, marketplace, simulator, activity, settings
+- ✅ Deployed on Base Sepolia, Unichain Sepolia, and Reactive Lasna (2026-11-14) — see `deployments/*.json`
+- ✅ Next.js frontend: landing, dashboard, vault, policies, marketplace, simulator, activity (multi-chain, paginated, latency badges), settings
 - ✅ Production build passes (`pnpm --filter web build`)
-- ⏳ Live testnet deployment pending `DEPLOYER_PRIVATE_KEY` + testnet funds — see `docs/DEPLOYMENT.md`
+- ⏳ Full demo flow rehearsal in progress — see `docs/DEMO_SCRIPT.md`
 
 ## Disclaimer
 

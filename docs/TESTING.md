@@ -29,11 +29,11 @@ pnpm --filter web build       # next build (all routes prerender)
 
 ## End-to-end (testnet)
 
-See `docs/DEMO_SCRIPT.md`. Requires deployed contracts + funded wallets.
+See `docs/DEMO_SCRIPT.md`. Contracts are deployed on all three chains (see `deployments/*.json`); the activity page reads live events from Base Sepolia and Unichain Sepolia via Blockscout.
 
 ## Quality gates status
 
 - [x] `forge test` — 30/30 pass
 - [x] `tsc --noEmit` — clean
 - [x] `next build` — all 9 routes prerender
-- [ ] Live testnet E2E — pending deployment credentials
+- [~] Live testnet E2E — contracts deployed; demo flow rehearsal in progress

@@ -44,6 +44,6 @@ Secondary path: same event → callback → Unichain Sepolia executor → record
 
 ## Known constraints
 
-- No deployer private key / testnet funds provided yet → deployment scripts + manifests prepared; live deployment is a documented manual step.
+- Contracts are deployed on all three chains (2026-11-14) — see `deployments/*.json`. Redeployment requires `DEPLOYER_PRIVATE_KEY` + testnet funds; see `docs/DEPLOYMENT.md`.
 - Reactive Lasna is not a user-facing wallet network; frontend targets Base Sepolia + Unichain Sepolia.
 - Mock oracle mode is clearly labeled; no fabricated live prices.

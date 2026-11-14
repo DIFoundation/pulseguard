@@ -1,5 +1,17 @@
 # Deployment
 
+## Current deployment (2026-11-14)
+
+All contracts are live. Addresses and tx hashes are in `deployments/`:
+
+- `deployments/base-sepolia.json` — MockERC20, MockPriceFeed, PulseGuardVault, ProtectionManager, ProtectionExecutor
+- `deployments/unichain-sepolia.json` — CrossChainExecutor
+- `deployments/reactive-lasna.json` — PulseGuardReactive
+
+Deployer: `0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67`
+
+The steps below are for redeployment or fresh environments.
+
 ## Prerequisites
 
 - Foundry (`forge`, `cast`)

@@ -7,6 +7,7 @@ import { usePolicies } from "@/hooks/useContracts";
 import { deployments, isConfigured, baseSepolia } from "@pulseguard/config";
 import { ProtectionManagerAbi } from "@pulseguard/abi";
 import { useReadContract, useAccount } from "wagmi";
+import { formatPrice, formatTokenAmount, shortAddress } from "@/lib/format";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
@@ -110,9 +111,9 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
           <Badge tone="accent">{TRIGGER_LABELS[Number(policy.triggerType)]}</Badge>
         </div>
         <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-foreground/50">
-          <span>Asset: <span className="font-mono">{policy.asset.slice(0, 8)}…</span></span>
-          <span>Threshold: {policy.threshold.toString()}</span>
-          <span>Amount: {policy.protectedAmount.toString()}</span>
+          <span>Asset: <span className="font-mono" title={policy.asset}>{shortAddress(policy.asset)}</span></span>
+          <span>Threshold: {formatPrice(policy.threshold)}</span>
+          <span>Amount: {formatTokenAmount(policy.protectedAmount)} tokens</span>
           <span>Dest chain: {policy.destinationChainId.toString()}</span>
         </div>
       </div>

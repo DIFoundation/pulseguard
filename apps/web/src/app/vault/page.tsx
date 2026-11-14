@@ -5,7 +5,8 @@ import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { useVault } from "@/hooks/useContracts";
 import { deployments, isConfigured } from "@pulseguard/config";
-import { formatEther, parseEther } from "viem";
+import { parseEther } from "viem";
+import { formatTokenAmount, shortAddress } from "@/lib/format";
 import { useAccount } from "wagmi";
 
 export default function VaultPage() {
@@ -14,8 +15,8 @@ export default function VaultPage() {
   const [amount, setAmount] = useState("");
 
   const configured = isConfigured("vault");
-  const bal = balance.data !== undefined && balance.data !== null ? formatEther(balance.data as bigint) : "0";
-  const total = totalDeposits.data !== undefined && totalDeposits.data !== null ? formatEther(totalDeposits.data as bigint) : "0";
+  const bal = balance.data !== undefined && balance.data !== null ? formatTokenAmount(balance.data as bigint) : "0";
+  const total = totalDeposits.data !== undefined && totalDeposits.data !== null ? formatTokenAmount(totalDeposits.data as bigint) : "0";
 
   const handleDeposit = () => {
     try {
@@ -47,8 +48,8 @@ export default function VaultPage() {
             <p className="mt-1 text-sm text-foreground/50">protected asset units</p>
             <div className="mt-6 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-foreground/60">Total vault deposits</span><span>{total}</span></div>
-              <div className="flex justify-between"><span className="text-foreground/60">Vault contract</span><span className="font-mono text-xs">{deployments.vault.address || "—"}</span></div>
-              <div className="flex justify-between"><span className="text-foreground/60">Asset token</span><span className="font-mono text-xs">{tokenAddr || "—"}</span></div>
+              <div className="flex justify-between"><span className="text-foreground/60">Vault contract</span><span className="font-mono text-xs" title={deployments.vault.address}>{shortAddress(deployments.vault.address)}</span></div>
+              <div className="flex justify-between"><span className="text-foreground/60">Asset token</span><span className="font-mono text-xs" title={tokenAddr}>{shortAddress(tokenAddr)}</span></div>
             </div>
           </Card>
 

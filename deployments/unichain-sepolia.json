@@ -3,9 +3,14 @@
   "chainId": 1301,
   "rpc": "https://sepolia.unichain.org",
   "explorer": "https://sepolia.uniscan.xyz",
-  "deployed": false,
-  "note": "Populate after running contracts/script/DeployExecutor.s.sol with CROSS_CHAIN=true on Unichain Sepolia.",
+  "deployed": true,
+  "deployedAt": "2026-11-14",
+  "deployer": "0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67",
   "contracts": {
-    "CrossChainExecutor": { "address": "", "txHash": "", "block": null }
+    "CrossChainExecutor": {
+      "address": "0x94766448920032f9Cb892e277731F77164512B66",
+      "txHash": "0x3bb87ef4e0e7ab7b1da4186f4bab0a6d253c57843db58cd98e2d89d4f8b38095",
+      "block": null
+    }
   }
 }

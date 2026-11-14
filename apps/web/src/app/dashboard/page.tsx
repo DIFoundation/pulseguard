@@ -5,7 +5,7 @@ import { PageHeader, StatCard, Card, Badge } from "@/components/ui";
 import { useAccount } from "wagmi";
 import { useVault, usePolicies } from "@/hooks/useContracts";
 import { deployments, isConfigured, baseSepolia, unichainSepolia } from "@pulseguard/config";
-import { formatEther, formatUnits } from "viem";
+import { formatTokenAmount } from "@/lib/format";
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -13,8 +13,8 @@ export default function DashboardPage() {
   const { balance, totalDeposits } = useVault();
   const { nextId } = usePolicies();
 
-  const protectedValue = balance.data ? formatEther(balance.data as bigint) : "—";
-  const totalValue = totalDeposits.data ? formatEther(totalDeposits.data as bigint) : "—";
+  const protectedValue = balance.data ? formatTokenAmount(balance.data as bigint) : "—";
+  const totalValue = totalDeposits.data ? formatTokenAmount(totalDeposits.data as bigint) : "—";
   const policyCount = nextId.data ? Number(nextId.data) - 1 : null;
 
   return (

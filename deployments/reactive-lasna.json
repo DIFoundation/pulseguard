@@ -3,9 +3,14 @@
   "chainId": 5318007,
   "rpc": "https://lasna-rpc.rnk.dev/",
   "explorer": "https://lasna.reactscan.net",
-  "deployed": false,
-  "note": "Populate after running contracts/script/DeployReactive.s.sol on Lasna. Fund with REACT for reactive transactions.",
+  "deployed": true,
+  "deployedAt": "2026-11-14",
+  "deployer": "0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67",
   "contracts": {
-    "PulseGuardReactive": { "address": "", "txHash": "", "block": null }
+    "PulseGuardReactive": {
+      "address": "0x94766448920032f9cb892e277731f77164512b66",
+      "txHash": "0x6301bf9f41a13669038dcc1d277e970eafabdd39a8ee2e1f3c0a80f06b182cc5",
+      "block": null
+    }
   }
 }

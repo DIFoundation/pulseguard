@@ -75,6 +75,12 @@ contract PulseGuardReactive is AbstractReactive {
         SYSTEM.subscribe(originChainId, priceFeed, priceTopic0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
     }
 
+    /// @notice Re-register the event subscription. Useful if the constructor-time
+    ///         subscribe did not stick (e.g. contract was unfunded at deploy).
+    function resubscribe() external onlyOwner {
+        _subscribe();
+    }
+
     // ---------- Owner: mirror management ----------
 
     /// @notice Mirror a policy locally so react() can evaluate it without cross-chain calls.

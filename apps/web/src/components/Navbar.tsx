@@ -6,6 +6,7 @@ import { Shield, LayoutDashboard, Vault, FileText, Store, FlaskConical, Activity
 import { useState } from "react";
 import { useAppKit } from "@reown/appkit/react";
 import { useAccount } from "wagmi";
+import { shortAddress } from "@/lib/format";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -54,7 +55,7 @@ export function Navbar() {
             onClick={() => openAppKit()}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90"
           >
-            {isConnected ? `${address?.slice(0, 6)}…${address?.slice(-4)}` : "Connect Wallet"}
+            {isConnected ? shortAddress(address) : "Connect Wallet"}
           </button>
           <button className="md:hidden" onClick={() => setOpen(!open)} aria-label="Menu">
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

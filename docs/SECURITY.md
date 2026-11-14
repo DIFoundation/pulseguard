@@ -27,7 +27,7 @@ Testnet hackathon prototype — **not audited**. Do not use with real funds.
 
 ## Known limitations
 
-- **Policy mirroring**: `PulseGuardReactive` keeps an owner-synced mirror of policies (cannot do cross-chain view calls). Mirror drift is possible; executor is authoritative.
+- **Policy mirroring**: `PulseGuardReactive` keeps an event-synced mirror of policies via `PolicyMirrorSync` (cannot do cross-chain view calls). Mirror drift is possible if events are missed; executor is authoritative.
 - **Single-asset vault**: `executePolicy` only moves funds when `policy.asset == vault.asset()`; other assets mark EXECUTED without transfer (documented).
 - **Mock oracle**: prices are operator-published, not market data.
 - **No independent audit**.

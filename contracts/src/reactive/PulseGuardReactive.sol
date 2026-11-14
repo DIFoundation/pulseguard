@@ -17,9 +17,10 @@ import {AbstractReactive} from "@reactive/src/base/AbstractReactive.sol";
 ///      on Lasna we subscribe to the SAME PriceUpdated events and maintain a local policy
 ///      registry that the origin chain syncs via `syncPolicy` callbacks... 
 ///
-///      SIMPLIFICATION FOR HACKATHON: policies are mirrored on Lasna via owner-synced
-///      registration (see registerPolicyMirror). The executor on the destination chain
-///      remains the authoritative validator.
+///      Policies are mirrored automatically: ProtectionManager emits PolicyMirrorSync
+///      on every lifecycle transition (create/activate/deactivate/cancel/execute), and
+///      this contract subscribes to those events on the origin chain. The destination
+///      executor remains the authoritative validator.
 contract PulseGuardReactive is AbstractReactive {
     uint64 private constant CALLBACK_GAS_LIMIT = 500_000;
 
@@ -37,12 +38,14 @@ contract PulseGuardReactive is AbstractReactive {
     address public owner;
     address public priceFeed; // origin-chain MockPriceFeed (for topic0 only)
     uint256 public originChainId;
-    address public manager; // ProtectionManager on origin chain (informational)
+    address public manager; // ProtectionManager on origin chain (mirror sync source)
 
     uint256 public priceTopic0; // PriceUpdated topic0
+    uint256 public policySyncTopic0; // PolicyMirrorSync topic0
 
     mapping(uint256 => MirrorPolicy) public mirrorPolicies;
     mapping(address => uint256[]) private _mirrorByAsset;
+    mapping(uint256 => bool) private _mirrorIndexed; // policyId => already in _mirrorByAsset
     mapping(bytes32 => bool) private _callbackRequested;
 
     event PolicyMirrored(uint256 indexed id, address monitoredAsset);
@@ -59,20 +62,31 @@ contract PulseGuardReactive is AbstractReactive {
         _;
     }
 
-    /// @param originChainId_ chain where PriceUpdated events originate (e.g. Base Sepolia 84532)
-    /// @param priceFeed_     origin-chain feed contract to subscribe to
-    /// @param priceTopic0_   topic0 of PriceUpdated(address,uint256,uint256)
-    constructor(uint256 originChainId_, address priceFeed_, uint256 priceTopic0_) payable {
-        if (priceFeed_ == address(0)) revert ZeroAddress();
+    /// @param originChainId_       chain where events originate (e.g. Base Sepolia 84532)
+    /// @param priceFeed_           origin-chain feed contract to subscribe to
+    /// @param priceTopic0_         topic0 of PriceUpdated(address,uint256,uint256)
+    /// @param manager_             origin-chain ProtectionManager (mirror sync source)
+    /// @param policySyncTopic0_    topic0 of PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)
+    constructor(
+        uint256 originChainId_,
+        address priceFeed_,
+        uint256 priceTopic0_,
+        address manager_,
+        uint256 policySyncTopic0_
+    ) payable {
+        if (priceFeed_ == address(0) || manager_ == address(0)) revert ZeroAddress();
         owner = msg.sender;
         originChainId = originChainId_;
         priceFeed = priceFeed_;
         priceTopic0 = priceTopic0_;
+        manager = manager_;
+        policySyncTopic0 = policySyncTopic0_;
         _subscribe();
     }
 
     function _subscribe() internal {
         SYSTEM.subscribe(originChainId, priceFeed, priceTopic0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+        SYSTEM.subscribe(originChainId, manager, policySyncTopic0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
     }
 
     /// @notice Re-register the event subscription. Useful if the constructor-time
@@ -105,7 +119,10 @@ contract PulseGuardReactive is AbstractReactive {
             destinationChainId: destinationChainId,
             active: true
         });
-        _mirrorByAsset[monitoredAsset].push(id);
+        if (!_mirrorIndexed[id]) {
+            _mirrorIndexed[id] = true;
+            _mirrorByAsset[monitoredAsset].push(id);
+        }
         emit PolicyMirrored(id, monitoredAsset);
     }
 
@@ -123,6 +140,12 @@ contract PulseGuardReactive is AbstractReactive {
 
     /// @inheritdoc IReactive
     function react(LogRecord memory log_) external onlySystem {
+        // Policy lifecycle sync from ProtectionManager — update mirror, no callback.
+        if (log_.chainId == originChainId && log_.contractAddress == manager && log_.topic0 == policySyncTopic0) {
+            _handlePolicySync(log_);
+            return;
+        }
+
         // Route on topic0; ignore irrelevant events cheaply.
         if (log_.topic0 != priceTopic0 || log_.chainId != originChainId || log_.contractAddress != priceFeed) {
             emit IrrelevantEvent(log_.chainId, log_.contractAddress, log_.topic0);
@@ -150,6 +173,46 @@ contract PulseGuardReactive is AbstractReactive {
 
             emit TriggerEvaluated(id, price);
             _requestCallback(mp, id, price, log_);
+        }
+    }
+
+    /// @dev PolicyMirrorSync(uint256 indexed id, address indexed monitoredAsset,
+    ///      uint8 triggerType, uint256 threshold, uint256 referencePrice,
+    ///      uint256 maxDrawdownBps, uint256 destinationChainId, bool active)
+    ///      opCode == 3 (topic0 + 2 indexed); data = abi.encode(triggerType, threshold,
+    ///      referencePrice, maxDrawdownBps, destinationChainId, active)
+    function _handlePolicySync(LogRecord memory log_) internal {
+        if (log_.opCode != 3) return;
+
+        uint256 id = log_.topic1;
+        address monitoredAsset = address(uint160(log_.topic2));
+        (
+            uint8 triggerType,
+            uint256 threshold,
+            uint256 referencePrice,
+            uint256 maxDrawdownBps,
+            uint256 destinationChainId,
+            bool active
+        ) = abi.decode(log_.data, (uint8, uint256, uint256, uint256, uint256, bool));
+
+        MirrorPolicy storage mp = mirrorPolicies[id];
+        mp.id = id;
+        if (active) {
+            mp.monitoredAsset = monitoredAsset;
+            mp.triggerType = triggerType;
+            mp.threshold = threshold;
+            mp.referencePrice = referencePrice;
+            mp.maxDrawdownBps = maxDrawdownBps;
+            mp.destinationChainId = destinationChainId;
+            mp.active = true;
+            if (!_mirrorIndexed[id]) {
+                _mirrorIndexed[id] = true;
+                _mirrorByAsset[monitoredAsset].push(id);
+            }
+            emit PolicyMirrored(id, monitoredAsset);
+        } else {
+            mp.active = false;
+            emit PolicyMirrorRemoved(id);
         }
     }
 

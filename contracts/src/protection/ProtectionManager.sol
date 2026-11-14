@@ -40,6 +40,19 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
     event PolicyDeactivated(uint256 indexed id);
     event PolicyCancelled(uint256 indexed id);
     event PolicyExecuted(uint256 indexed id, address indexed executor);
+    /// @notice Full policy snapshot for Reactive mirror synchronization.
+    /// @dev Consumed by PulseGuardReactive on Lasna via event subscription.
+    ///      `active` is true on create/activate, false on deactivate/cancel/execute.
+    event PolicyMirrorSync(
+        uint256 indexed id,
+        address indexed monitoredAsset,
+        uint8 triggerType,
+        uint256 threshold,
+        uint256 referencePrice,
+        uint256 maxDrawdownBps,
+        uint256 destinationChainId,
+        bool active
+    );
     event ExecutorForChainSet(uint256 indexed chainId, address executor);
     event ReactiveContractSet(address reactive);
 
@@ -87,6 +100,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         }
         emit PolicyCreated(id, msg.sender, p.asset, uint8(p.triggerType));
         emit PolicyActivated(id);
+        _emitMirrorSync(p, true);
     }
 
     function deactivatePolicy(uint256 id) external {
@@ -95,6 +109,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         if (p.status != ProtectionTypes.PolicyStatus.ACTIVE) revert ProtectionErrors.PolicyNotActive();
         p.status = ProtectionTypes.PolicyStatus.CREATED;
         emit PolicyDeactivated(id);
+        _emitMirrorSync(p, false);
     }
 
     function activatePolicy(uint256 id) external {
@@ -104,6 +119,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         if (p.expiresAt != 0 && block.timestamp > p.expiresAt) revert ProtectionErrors.PolicyExpired();
         p.status = ProtectionTypes.PolicyStatus.ACTIVE;
         emit PolicyActivated(id);
+        _emitMirrorSync(p, true);
     }
 
     function cancelPolicy(uint256 id) external {
@@ -114,6 +130,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         }
         p.status = ProtectionTypes.PolicyStatus.CANCELLED;
         emit PolicyCancelled(id);
+        _emitMirrorSync(p, false);
     }
 
     // ---------- Evaluation (called by Reactive contract on Lasna) ----------
@@ -178,6 +195,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
             // mark executed and emit — documented limitation for multi-asset vaults.
         }
         emit PolicyExecuted(id, msg.sender);
+        _emitMirrorSync(p, false);
     }
 
     // ---------- Views ----------
@@ -199,6 +217,19 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
     }
 
     // ---------- Internal ----------
+
+    function _emitMirrorSync(ProtectionTypes.Policy memory p, bool active) internal {
+        emit PolicyMirrorSync(
+            p.id,
+            p.monitoredAsset,
+            uint8(p.triggerType),
+            p.threshold,
+            p.referencePrice,
+            p.maxDrawdownBps,
+            p.destinationChainId,
+            active
+        );
+    }
 
     function _validateTrigger(ProtectionTypes.Policy memory p) internal pure {
         if (p.triggerType == ProtectionTypes.TriggerType.STOP_LOSS || p.triggerType == ProtectionTypes.TriggerType.EMERGENCY) {

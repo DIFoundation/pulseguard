@@ -50,7 +50,10 @@ contract ProtectionIntegrationTest is Test {
         proxy = new MockCallbackProxy();
 
         uint256 topic0 = uint256(keccak256("PriceUpdated(address,uint256,uint256)"));
-        reactive = new PulseGuardReactive(BASE_CHAIN, address(feed), topic0);
+        uint256 syncTopic0 = uint256(
+            keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)")
+        );
+        reactive = new PulseGuardReactive(BASE_CHAIN, address(feed), topic0, address(manager), syncTopic0);
         reactiveAddr = address(reactive);
 
         executor = new ProtectionExecutor(IPayable(payable(address(proxy))), reactiveAddr, address(manager));
@@ -86,8 +89,19 @@ contract ProtectionIntegrationTest is Test {
         vm.prank(user);
         uint256 id = manager.createPolicy(p);
 
-        // 2. Mirror policy on reactive contract (owner sync)
-        reactive.mirrorPolicy(id, ASSET, 0, 1900e8, 0, 0, BASE_CHAIN);
+        // 2. Mirror policy on reactive contract via PolicyMirrorSync event (auto-sync path)
+        IReactive.LogRecord memory syncLog = IReactive.LogRecord({
+            chainId: BASE_CHAIN,
+            contractAddress: address(manager),
+            topic0: uint256(keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)")),
+            topic1: id,
+            topic2: uint256(uint160(ASSET)),
+            topic3: 0,
+            data: abi.encode(uint8(ProtectionTypes.TriggerType.STOP_LOSS), 1900e8, 0, 0, BASE_CHAIN, true),
+            blockNumber: 1, opCode: 3, blockHash: 0, txHash: 0xaaa, logIndex: 0
+        });
+        vm.prank(SYSTEM);
+        reactive.react(syncLog);
 
         // 3. Publish non-triggering price
         vm.prank(operator);

@@ -38,6 +38,7 @@ LASNA_RPC=https://lasna-rpc.rnk.dev/ \
 DEPLOYER_PRIVATE_KEY=0x... \
 ORIGIN_CHAIN_ID=84532 \
 PRICE_FEED_ADDRESS=0x<feed> \
+MANAGER_ADDRESS=0x<manager> \
 forge script script/DeployReactive.s.sol:DeployReactive \
   --rpc-url $LASNA_RPC --broadcast
 
@@ -71,7 +72,7 @@ forge script script/Configure.s.sol:Configure \
 1. Record addresses in `deployments/*.json`.
 2. Set `NEXT_PUBLIC_*` env vars in `apps/web/.env.local`.
 3. Fund reactive contract (REACT on Lasna) and executors (native token).
-4. Mirror policies on reactive contract via `mirrorPolicy` (owner-only) as policies are created.
+4. Policies auto-mirror on Lasna via `PolicyMirrorSync` events — no manual `mirrorPolicy` calls needed (owner override still available).
 5. Run the demo flow in `docs/DEMO_SCRIPT.md`.
 
 ## Verification

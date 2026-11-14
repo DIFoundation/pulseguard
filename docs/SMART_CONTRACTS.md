@@ -10,7 +10,7 @@ Solidity 0.8.29, Foundry, OpenZeppelin 5.4, reactive-lib-omni.
 | ProtectionManager | `src/protection/` | `createPolicy`, `deactivatePolicy`, `activatePolicy`, `cancelPolicy`, `executePolicy`, `triggeredPolicies`, `callbackTarget` |
 | ProtectionExecutor | `src/protection/` | `executeProtection` (`onlyServiceProvider onlyCallbackSender`) |
 | CrossChainExecutor | `src/protection/` | `recordProtection` (idempotent) |
-| PulseGuardReactive | `src/reactive/` | `react` (`onlySystem`), `mirrorPolicy`, `setExecutorForChain` |
+| PulseGuardReactive | `src/reactive/` | `react` (`onlySystem`), `mirrorPolicy`/`deactivateMirror` (owner override), `setExecutorForChain` |
 | MockPriceFeed | `src/oracle/` | `updatePrice` (operator-only), `latestPrice` |
 | MockERC20 | `test/mocks/` | test asset |
 

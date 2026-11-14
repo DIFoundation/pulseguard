@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
@@ -18,13 +18,39 @@ const STATUS_TONES: Record<number, "default" | "success" | "warning" | "danger" 
 };
 const TRIGGER_LABELS = ["Stop-Loss", "Take-Profit", "Max Drawdown", "Emergency"];
 
+const PAGE_SIZE = 10;
+
 export default function PoliciesPage() {
   const { address } = useAccount();
   const { nextId, deactivate, cancel, isPending } = usePolicies();
   const [filter, setFilter] = useState<string>("all");
+  const [page, setPage] = useState(0);
+  const [statuses, setStatuses] = useState<Record<string, number>>({});
 
   const count = nextId.data ? Number(nextId.data) : 0;
   const ids = Array.from({ length: Math.min(count - 1, 50) }, (_, i) => BigInt(i + 1));
+
+  const reportStatus = useCallback((id: bigint, status: number) => {
+    setStatuses((prev) => (prev[id.toString()] === status ? prev : { ...prev, [id.toString()]: status }));
+  }, []);
+
+  const countFor = (f: string) =>
+    f === "all" ? ids.length : ids.filter((id) => statuses[id.toString()] === ({ active: 1, executed: 3, cancelled: 4 } as Record<string, number>)[f]).length;
+
+  const matchesFilter = (id: bigint) => {
+    if (filter === "all") return true;
+    const s = statuses[id.toString()];
+    if (s === undefined) return false;
+    if (filter === "active") return s === 1;
+    if (filter === "executed") return s === 3;
+    if (filter === "cancelled") return s === 4;
+    return true;
+  };
+
+  const visibleIds = ids.filter(matchesFilter);
+  const pageCount = Math.max(1, Math.ceil(visibleIds.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageIds = visibleIds.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   return (
     <div className="min-h-screen">
@@ -50,10 +76,10 @@ export default function PoliciesPage() {
           {["all", "active", "executed", "cancelled"].map((f) => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => { setFilter(f); setPage(0); }}
               className={`rounded-lg px-3 py-1.5 text-sm capitalize ${filter === f ? "bg-accent/15 text-accent" : "text-foreground/60 hover:bg-card"}`}
             >
-              {f}
+              {f} <span className="ml-1 text-xs opacity-60">({countFor(f)})</span>
             </button>
           ))}
         </div>
@@ -62,16 +88,64 @@ export default function PoliciesPage() {
           <Card className="p-8 text-center text-foreground/50">
             No policies yet. Create your first protection policy to get started.
           </Card>
+        ) : visibleIds.length === 0 ? (
+          <Card className="p-8 text-center text-foreground/50">
+            No {filter} policies.
+          </Card>
         ) : (
+          <>
           <div className="space-y-3">
-            {ids.map((id) => (
+            {pageIds.map((id) => (
               <PolicyRow key={id.toString()} id={id} filter={filter} onDeactivate={deactivate} onCancel={cancel} isPending={isPending} owner={address} />
             ))}
           </div>
+          {ids.map((id) => (
+            <PolicyProbe key={`probe-${id.toString()}`} id={id} onStatus={reportStatus} />
+          ))}
+          {visibleIds.length > PAGE_SIZE && (
+            <div className="mt-4 flex items-center justify-between text-sm text-foreground/60">
+              <span>
+                Page {safePage + 1} of {pageCount} · {visibleIds.length} policies
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={safePage === 0}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-card disabled:opacity-40"
+                >
+                  ← Prev
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                  disabled={safePage >= pageCount - 1}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-card disabled:opacity-40"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </main>
     </div>
   );
+}
+
+function PolicyProbe({ id, onStatus }: { id: bigint; onStatus: (id: bigint, status: number) => void }) {
+  const { data } = useReadContract({
+    abi: ProtectionManagerAbi,
+    address: deployments.protectionManager.address as `0x${string}`,
+    functionName: "getPolicy",
+    args: [id],
+    chainId: baseSepolia.id,
+    query: { enabled: isConfigured("protectionManager") },
+  });
+  useEffect(() => {
+    const raw = data as { status?: number } | undefined;
+    if (raw && typeof raw.status === "number") onStatus(id, raw.status);
+  }, [data, id, onStatus]);
+  return null;
 }
 
 function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
@@ -93,7 +167,7 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
     id: bigint; owner: `0x${string}`; asset: `0x${string}`; monitoredAsset: `0x${string}`;
     destinationChainId: bigint; triggerType: number; threshold: bigint; referencePrice: bigint;
     maxDrawdownBps: bigint; protectedAmount: bigint; recipient: `0x${string}`; action: number;
-    status: number; createdAt: number; expiresAt: number; executedAt: number;
+    status: number; createdAt: bigint; expiresAt: bigint; executedAt: bigint;
   }
   const policy = policyRaw as Policy | undefined;
   if (isLoading) {
@@ -114,7 +188,10 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
 
   const isOwner = owner?.toLowerCase() === policy.owner.toLowerCase();
 
-  const fmtTs = (ts: number) => (ts > 0 ? new Date(ts * 1000).toLocaleString() : "—");
+  const fmtTs = (ts: bigint | number) => {
+    const n = Number(ts);
+    return n > 0 ? new Date(n * 1000).toLocaleString() : "—";
+  };
 
   return (
     <Card className="flex flex-wrap items-center justify-between gap-4">

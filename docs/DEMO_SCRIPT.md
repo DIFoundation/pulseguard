@@ -9,7 +9,7 @@ User has a protected position. Reference price $2,000, stop-loss 5% → trigger 
 1. **Connect wallet** (Reown AppKit) on Base Sepolia.
 2. **Deposit** test assets into PulseGuard Vault (`/vault`).
 3. **Create policy** (`/policies/create`): Stop-Loss, threshold $1,900, amount, destination Base Sepolia.
-4. **Mirror policy** on reactive contract (`mirrorPolicy`, owner tx on Lasna).
+4. **Auto-mirror**: `ProtectionManager` emits `PolicyMirrorSync` → Reactive Network delivers it to `PulseGuardReactive` on Lasna, which registers the policy mirror automatically (no manual tx).
 5. **Publish price $1,950** via `MockPriceFeed.updatePrice` → show policy stays ACTIVE, no callback.
 6. **Publish price $1,890** → show:
    - Origin `PriceUpdated` event (BaseScan)

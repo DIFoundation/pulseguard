@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
@@ -30,8 +30,14 @@ function CreatePolicyForm() {
   const searchParams = useSearchParams();
   const templateName = searchParams.get("template");
 
-  const [triggerType, setTriggerType] = useState(0);
-  const [templateApplied, setTemplateApplied] = useState(false);
+  const initialTrigger = (() => {
+    const t = searchParams.get("trigger");
+    if (t === null) return 0;
+    const v = Number(t);
+    return v >= 0 && v <= 3 ? v : 0;
+  })();
+
+  const [triggerType, setTriggerType] = useState(initialTrigger);
   const [threshold, setThreshold] = useState("");
   const [referencePrice, setReferencePrice] = useState("");
   const [maxDrawdownPct, setMaxDrawdownPct] = useState("5");
@@ -42,15 +48,6 @@ function CreatePolicyForm() {
   const feedAsset = deployments.testToken.address as `0x${string}`;
   const asset = deployments.testToken.address as `0x${string}`;
 
-  useEffect(() => {
-    if (templateApplied) return;
-    const t = searchParams.get("trigger");
-    if (t !== null) {
-      const v = Number(t);
-      if (v >= 0 && v <= 3) setTriggerType(v);
-    }
-    setTemplateApplied(true);
-  }, [searchParams, templateApplied]);
 
   const handleSubmit = () => {
     if (!address || !asset || asset === "0x") return;

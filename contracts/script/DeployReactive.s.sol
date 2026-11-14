@@ -13,13 +13,19 @@ contract DeployReactive is Script {
         uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
 
-        // Configure via env: ORIGIN_CHAIN_ID, PRICE_FEED_ADDRESS
+        // Configure via env: ORIGIN_CHAIN_ID, PRICE_FEED_ADDRESS, MANAGER_ADDRESS
         uint256 originChainId = vm.envUint("ORIGIN_CHAIN_ID"); // e.g. 84532
         address priceFeed = vm.envAddress("PRICE_FEED_ADDRESS");
-        uint256 topic0 = uint256(keccak256("PriceUpdated(address,uint256,uint256)"));
+        address manager = vm.envAddress("MANAGER_ADDRESS");
+        uint256 priceTopic0 = uint256(keccak256("PriceUpdated(address,uint256,uint256)"));
+        uint256 syncTopic0 = uint256(
+            keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)")
+        );
 
         vm.startBroadcast(deployerKey);
-        PulseGuardReactive reactive = new PulseGuardReactive{value: 0}(originChainId, priceFeed, topic0);
+        PulseGuardReactive reactive = new PulseGuardReactive{value: 0}(
+            originChainId, priceFeed, priceTopic0, manager, syncTopic0
+        );
         console2.log("reactive", address(reactive));
         console2.log("chainId", block.chainid);
         vm.stopBroadcast();

@@ -24,19 +24,27 @@ Verified against https://dev.reactive.network/ (Nov 2026) and `reactive-lib-omni
 - `AbstractCallback(callbackProxy_, callbackSender_)` → `onlyServiceProvider`, `onlyCallbackSender(addr)`.
 - `ISystemContract.requestCallbackV_1_0(CallbackConfiguration_V_1_0{chainId, recipient, gasLimit, payload})`.
 
-## Subscription
+## Subscriptions
 
-Constructor subscribes once:
+Constructor subscribes to two event sources on the origin chain:
 
 ```solidity
 SYSTEM.subscribe(originChainId, priceFeed, priceTopic0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+SYSTEM.subscribe(originChainId, manager, policySyncTopic0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
 ```
 
-`priceTopic0 = uint256(keccak256("PriceUpdated(address,uint256,uint256)"))`.
+- `priceTopic0 = uint256(keccak256("PriceUpdated(address,uint256,uint256)"))`
+- `policySyncTopic0 = uint256(keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)"))`
 
 ## LogRecord decoding
 
 `PriceUpdated(address indexed asset, uint256 price, uint256 timestamp)` → `opCode == 2` (topic0 + 1 indexed), `topic1 = asset`, `data = abi.encode(price, timestamp)`.
+
+`PolicyMirrorSync(uint256 indexed id, address indexed monitoredAsset, uint8 triggerType, uint256 threshold, uint256 referencePrice, uint256 maxDrawdownBps, uint256 destinationChainId, bool active)` → `opCode == 3` (topic0 + 2 indexed), `topic1 = id`, `topic2 = monitoredAsset`, `data = abi.encode(triggerType, threshold, referencePrice, maxDrawdownBps, destinationChainId, active)`.
+
+## Policy mirror auto-sync
+
+`ProtectionManager` emits `PolicyMirrorSync` on every lifecycle transition: `createPolicy`/`activatePolicy` (`active=true`), `deactivatePolicy`/`cancelPolicy`/`executePolicy` (`active=false`). `PulseGuardReactive.react()` routes these to `_handlePolicySync`, which upserts or deactivates the local mirror — no owner intervention required. `mirrorPolicy`/`deactivateMirror` remain as owner-only manual overrides.
 
 ## Callback payload
 
@@ -52,7 +60,7 @@ abi.encodeWithSignature("recordProtection(address,uint256,uint256)", address(0),
 ## Deployment order (mandatory)
 
 1. Deploy origin contracts (Base Sepolia): token, feed, vault, manager.
-2. Deploy `PulseGuardReactive` on Lasna (constructor subscribes).
+2. Deploy `PulseGuardReactive` on Lasna with `(originChainId, priceFeed, priceTopic0, manager, policySyncTopic0)` — constructor subscribes to both price and policy-sync events.
 3. Deploy `ProtectionExecutor` on Base Sepolia with `(baseProxy, reactiveAddress, manager)`.
 4. Deploy `CrossChainExecutor` on Unichain Sepolia with `(uniProxy, reactiveAddress)`.
 5. `manager.setExecutorForChain(84532, baseExecutor)`, `setExecutorForChain(1301, uniExecutor)`, `setReactiveContract(reactive)`.

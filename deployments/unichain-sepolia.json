@@ -1,0 +1,11 @@
+{
+  "network": "unichain-sepolia",
+  "chainId": 1301,
+  "rpc": "https://sepolia.unichain.org",
+  "explorer": "https://sepolia.uniscan.xyz",
+  "deployed": false,
+  "note": "Populate after running contracts/script/DeployExecutor.s.sol with CROSS_CHAIN=true on Unichain Sepolia.",
+  "contracts": {
+    "CrossChainExecutor": { "address": "", "txHash": "", "block": null }
+  }
+}

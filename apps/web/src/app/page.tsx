@@ -10,7 +10,7 @@ export default function LandingPage() {
       <main>
         <section className="mx-auto max-w-7xl px-4 pb-20 pt-24 text-center">
           <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-1.5 text-xs font-medium text-accent">
-            <Zap className="h-3.5 w-3.5" /> Reactive Omni Buildathon — Every Second Counts
+            <Zap className="h-3.5 w-3.5" /> Reactive Omni Buildathon -Every Second Counts
           </div>
           <h1 className="mx-auto max-w-3xl text-5xl font-bold tracking-tight md:text-6xl">
             Protect your positions.
@@ -19,7 +19,7 @@ export default function LandingPage() {
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-foreground/60">
-            PulseGuard is autonomous DeFi protection infrastructure. Configure a policy once — Reactive Network
+            PulseGuard is autonomous DeFi protection infrastructure. Configure a policy once - Reactive Network
             monitors on-chain events and executes your protection automatically, cross-chain, without bots.
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
@@ -36,7 +36,7 @@ export default function LandingPage() {
           <div className="mx-auto max-w-7xl px-4">
             <h2 className="text-center text-3xl font-semibold">How PulseGuard works</h2>
             <p className="mx-auto mt-3 max-w-xl text-center text-foreground/60">
-              Event-driven protection orchestrated by Reactive Network — no keepers, no polling, no trust in a backend.
+              Event-driven protection orchestrated by Reactive Network - no keepers, no polling, no trust in a backend.
             </p>
             <div className="mt-12 grid gap-6 md:grid-cols-3">
               {[

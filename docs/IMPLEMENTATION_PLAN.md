@@ -31,7 +31,7 @@ Base Sepolia (84532)                Reactive Lasna (5318007)          Destinatio
 ```
 
 Primary path: Base Sepolia price event → Lasna reactive eval → authenticated callback → Base Sepolia executor → vault action (same-chain asset protection).
-Secondary path: same event → callback → Unichain Sepolia executor → records cross-chain protection state (demonstrates genuine cross-chain execution; does NOT move Base assets).
+Secondary path: same event → callback → Unichain Sepolia executor → records a verifiable cross-chain attestation of the protection event (demonstrates genuine cross-chain execution; does NOT move Base assets).
 
 ## Phases
 

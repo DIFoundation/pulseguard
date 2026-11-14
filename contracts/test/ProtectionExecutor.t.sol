@@ -123,4 +123,23 @@ contract ProtectionExecutorTest is Test {
         uniExecutor.recordProtection(reactive, 42, 1800e8);
         assertEq(uniExecutor.recordCount(), 1);
     }
+
+    function testCrossChainAttestation() public {
+        vm.prank(proxy);
+        uniExecutor.recordProtection(reactive, 42, 1800e8);
+
+        CrossChainExecutor.ProtectionRecord memory rec = uniExecutor.getRecord(42);
+        assertEq(rec.policyId, 42);
+        assertEq(rec.price, 1800e8);
+        assertEq(rec.timestamp, block.timestamp);
+        assertEq(rec.reactive, reactive);
+        assertTrue(rec.attestation != bytes32(0));
+        assertTrue(uniExecutor.verifyAttestation(42));
+        assertEq(uniExecutor.recordIndex(42), 1);
+
+        // unrecorded policy: getRecord reverts, verifyAttestation returns false
+        vm.expectRevert(CrossChainExecutor.RecordNotFound.selector);
+        uniExecutor.getRecord(99);
+        assertFalse(uniExecutor.verifyAttestation(99));
+    }
 }

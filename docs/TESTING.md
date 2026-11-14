@@ -7,14 +7,14 @@ cd contracts
 forge test -vv
 ```
 
-30 tests across 5 suites:
+35 tests across 5 suites:
 
 | Suite | Tests | Coverage |
 |---|---|---|
 | PulseGuardVault | 7 | deposit, withdraw, protectedExit auth, pause, reentrancy |
-| ProtectionManager | 9 | policy CRUD, all trigger types, dedup, auth, expiry |
-| ProtectionExecutor | 5 | callback auth, forged sender rejection, duplicate rejection, cross-chain record |
-| PulseGuardReactive | 8 | onlySystem, irrelevant events, all triggers, dedup, deactivation |
+| ProtectionManager | 10 | policy CRUD, all trigger types, dedup, auth, expiry |
+| ProtectionExecutor | 6 | callback auth, forged sender rejection, duplicate rejection, cross-chain attestation |
+| PulseGuardReactive | 11 | onlySystem, irrelevant events, all triggers, dedup, deactivation, auto-mirror sync |
 | ProtectionIntegration | 1 | full lifecycle: event → react → callback → execution |
 
 Reactive tests use `MockSystemContract` etched at `0x8888…` and `vm.prank(SYSTEM)`.

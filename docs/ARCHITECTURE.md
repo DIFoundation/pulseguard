@@ -9,7 +9,7 @@
 | `PulseGuardVault` | Base Sepolia | Non-custodial ERC-20 vault; `protectedExit` only callable by registered executor |
 | `ProtectionManager` | Base Sepolia | Policy state machine + trigger evaluation + execution |
 | `ProtectionExecutor` | Base Sepolia | `AbstractCallback` destination executor; calls `manager.executePolicy` |
-| `CrossChainExecutor` | Unichain Sepolia | `AbstractCallback` cross-chain record keeper |
+| `CrossChainExecutor` | Unichain Sepolia | `AbstractCallback` cross-chain attestation registry (`getRecord`, `verifyAttestation`) |
 | `PulseGuardReactive` | Reactive Lasna | `AbstractReactive`; subscribes to `PriceUpdated` + `PolicyMirrorSync`, mirrors policies, requests callbacks |
 
 ## Policy state machine
@@ -41,7 +41,7 @@ CANCELLED  EXPIRED   FAILED
 3. `react()` validates `chainId`, `contractAddress`, `topic0`, `opCode`; decodes `asset` (topic1) and `(price, timestamp)` (data) for price events, or upserts/deactivates the policy mirror for `PolicyMirrorSync` events (`opCode==3`).
 4. For each mirrored ACTIVE policy on that asset where `_isTriggered` holds, it dedups by `keccak256(txHash, logIndex, policyId)` and calls `SYSTEM.requestCallbackV_1_0` with:
    - Base Sepolia → `ProtectionExecutor.executeProtection(address(0), policyId)`
-   - Other chains → `CrossChainExecutor.recordProtection(address(0), policyId, price)`
+   - Other chains → `CrossChainExecutor.recordProtection(address(0), policyId, price)` → stores a verifiable attestation (`keccak256(policyId, price, timestamp, reactive)`)
 5. The callback proxy injects the reactive contract address into the payload's first arg; the executor's `onlyServiceProvider onlyCallbackSender` modifiers authenticate it.
 6. `ProtectionExecutor` → `ProtectionManager.executePolicy` → re-reads feed price, re-checks trigger, transitions to EXECUTED, calls `vault.protectedExit(owner, recipient, amount)`.
 

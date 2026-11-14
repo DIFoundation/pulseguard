@@ -134,7 +134,7 @@ function CreatePolicyForm() {
                 <label className="text-sm text-foreground/60">Destination chain</label>
                 <select value={destChain} onChange={(e) => setDestChain(Number(e.target.value) as 84532 | 1301)} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent">
                   <option value={84532}>Base Sepolia (executes vault action)</option>
-                  <option value={1301}>Unichain Sepolia (cross-chain record)</option>
+                  <option value={1301}>Unichain Sepolia (cross-chain attestation)</option>
                 </select>
               </div>
               <div>

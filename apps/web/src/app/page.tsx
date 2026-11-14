@@ -65,11 +65,11 @@ export default function LandingPage() {
 | ProtectionMgr   |           |  - evaluate      |        +---------------------+
 +-----------------+           |  - request cb    |  cb    +---------------------+
                               +------------------+ -----> | Unichain Executor    |
-                                                          |  - cross-chain state |
+                                                          |  - attestation record  |
                                                           +---------------------+`}</pre>
               <p className="mt-6 text-sm text-foreground/50">
-                The same-chain callback executes real vault actions; the Unichain callback demonstrates genuine
-                cross-chain event-driven execution. Reactive Network is essential — no backend decides triggers.
+                The same-chain callback executes real vault actions; the Unichain callback records a verifiable
+                on-chain attestation of the protection event. Reactive Network is essential — no backend decides triggers.
               </p>
             </Card>
           </div>

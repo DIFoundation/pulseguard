@@ -29,5 +29,6 @@ Testnet hackathon prototype — **not audited**. Do not use with real funds.
 
 - **Policy mirroring**: `PulseGuardReactive` keeps an event-synced mirror of policies via `PolicyMirrorSync` (cannot do cross-chain view calls). Mirror drift is possible if events are missed; executor is authoritative.
 - **Single-asset vault**: `executePolicy` only moves funds when `policy.asset == vault.asset()`; other assets mark EXECUTED without transfer (documented).
+- **Cross-chain attestation only**: `CrossChainExecutor` on Unichain records a verifiable attestation of the protection event — it does not move assets. Asset movement happens on Base Sepolia via `ProtectionExecutor`. Attestations are tamper-evident (`verifyAttestation`) but carry no funds.
 - **Mock oracle**: prices are operator-published, not market data.
 - **No independent audit**.

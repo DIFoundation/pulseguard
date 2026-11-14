@@ -4,7 +4,7 @@
 Use `AbstractReactive` / `AbstractCallback` from `reactive-lib-omni` (master). No `vmOnly`, no dual deployment, no legacy `Callback` event. Callbacks via `SYSTEM.requestCallbackV_1_0`.
 
 ## TD-2: Same-chain primary execution
-Vault + ProtectionManager live on Base Sepolia. The reactive contract on Lasna subscribes to Base Sepolia `PriceUpdated` events and requests a callback **back to Base Sepolia** (`ProtectionExecutor`), so the protection action can actually move vault assets. A second callback targets Unichain Sepolia for cross-chain state demonstration only — it never claims to move Base assets.
+Vault + ProtectionManager live on Base Sepolia. The reactive contract on Lasna subscribes to Base Sepolia `PriceUpdated` events and requests a callback **back to Base Sepolia** (`ProtectionExecutor`), so the protection action can actually move vault assets. A second callback targets Unichain Sepolia, where `CrossChainExecutor` records a verifiable on-chain attestation of the protection event (`getRecord`/`verifyAttestation`) — it never claims to move Base assets.
 
 ## TD-3: Policy state lives in ProtectionManager (origin chain)
 The reactive contract is stateless w.r.t. policies except a dedup set. On `react()` it decodes the price, checks each active policy's threshold via view calls to ProtectionManager, and requests callbacks only for newly triggered policies. The executor re-validates everything on-chain (policy active, not executed, threshold still met) — the reactive contract is not trusted.

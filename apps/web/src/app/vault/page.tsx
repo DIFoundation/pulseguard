@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
-import { PageHeader, Card, Badge } from "@/components/ui";
+import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
 import { useVault } from "@/hooks/useContracts";
 import { deployments, isConfigured } from "@pulseguard/config";
 import { parseEther } from "viem";
@@ -15,6 +15,8 @@ export default function VaultPage() {
   const [amount, setAmount] = useState("");
 
   const configured = isConfigured("vault");
+  const balLoading = balance.isLoading;
+  const totalLoading = totalDeposits.isLoading;
   const bal = balance.data !== undefined && balance.data !== null ? formatTokenAmount(balance.data as bigint) : "0";
   const total = totalDeposits.data !== undefined && totalDeposits.data !== null ? formatTokenAmount(totalDeposits.data as bigint) : "0";
 
@@ -44,10 +46,10 @@ export default function VaultPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <h3 className="font-semibold">Your Balance</h3>
-            <p className="mt-3 text-3xl font-bold">{isConnected ? bal : "—"}</p>
+            <p className="mt-3 text-3xl font-bold">{isConnected ? (balLoading ? <Skeleton className="h-9 w-32" /> : bal) : "—"}</p>
             <p className="mt-1 text-sm text-foreground/50">protected asset units</p>
             <div className="mt-6 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-foreground/60">Total vault deposits</span><span>{total}</span></div>
+              <div className="flex justify-between"><span className="text-foreground/60">Total vault deposits</span><span>{totalLoading ? <Skeleton className="h-4 w-16" /> : total}</span></div>
               <div className="flex justify-between"><span className="text-foreground/60">Vault contract</span><span className="font-mono text-xs" title={deployments.vault.address}>{shortAddress(deployments.vault.address)}</span></div>
               <div className="flex justify-between"><span className="text-foreground/60">Asset token</span><span className="font-mono text-xs" title={tokenAddr}>{shortAddress(tokenAddr)}</span></div>
             </div>

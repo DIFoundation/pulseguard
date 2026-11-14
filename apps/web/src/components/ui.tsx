@@ -31,6 +31,10 @@ export function Badge({ children, tone = "default" }: { children: ReactNode; ton
   return <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${tones[tone]}`}>{children}</span>;
 }
 
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-foreground/10 ${className}`} />;
+}
+
 export function PageHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { usePolicies } from "@/hooks/useContracts";
@@ -16,10 +17,21 @@ const TRIGGERS = [
 ];
 
 export default function CreatePolicyPage() {
+  return (
+    <Suspense fallback={null}>
+      <CreatePolicyForm />
+    </Suspense>
+  );
+}
+
+function CreatePolicyForm() {
   const { address, isConnected } = useAccount();
   const { createPolicy, isPending, txHash, receipt, error } = usePolicies();
+  const searchParams = useSearchParams();
+  const templateName = searchParams.get("template");
 
   const [triggerType, setTriggerType] = useState(0);
+  const [templateApplied, setTemplateApplied] = useState(false);
   const [threshold, setThreshold] = useState("");
   const [referencePrice, setReferencePrice] = useState("");
   const [maxDrawdownPct, setMaxDrawdownPct] = useState("5");
@@ -29,6 +41,16 @@ export default function CreatePolicyPage() {
 
   const feedAsset = deployments.testToken.address as `0x${string}`;
   const asset = deployments.testToken.address as `0x${string}`;
+
+  useEffect(() => {
+    if (templateApplied) return;
+    const t = searchParams.get("trigger");
+    if (t !== null) {
+      const v = Number(t);
+      if (v >= 0 && v <= 3) setTriggerType(v);
+    }
+    setTemplateApplied(true);
+  }, [searchParams, templateApplied]);
 
   const handleSubmit = () => {
     if (!address || !asset || asset === "0x") return;
@@ -60,7 +82,10 @@ export default function CreatePolicyPage() {
     <div className="min-h-screen">
       <Navbar />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <PageHeader title="Create Protection Policy" description="Configure an autonomous protection policy enforced by smart contracts and Reactive Network." />
+        <PageHeader
+          title="Create Protection Policy"
+          description={templateName ? `Template: ${templateName} — customize parameters below.` : "Configure an autonomous protection policy enforced by smart contracts and Reactive Network."}
+        />
 
         {!isConfigured("protectionManager") && (
           <Card className="mb-6 border-warning/30 bg-warning/5 p-4 text-sm text-warning">

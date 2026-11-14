@@ -6,12 +6,12 @@ import Link from "next/link";
 import { Shield, TrendingUp, Activity, AlertTriangle, Droplets, Siren } from "lucide-react";
 
 const templates = [
-  { icon: Shield, name: "Safe Exit", desc: "Stop-loss that moves protected funds to your wallet when price drops below threshold.", trigger: "Stop-Loss", params: "threshold, amount" },
-  { icon: TrendingUp, name: "Profit Lock", desc: "Take-profit that secures gains when price reaches your target.", trigger: "Take-Profit", params: "threshold, amount" },
-  { icon: Activity, name: "Volatility Shield", desc: "Maximum drawdown guard from a recorded reference price.", trigger: "Max Drawdown", params: "reference, maxDrawdown%" },
-  { icon: AlertTriangle, name: "Maximum Drawdown Guard", desc: "Triggers when loss from reference exceeds configured bps.", trigger: "Max Drawdown", params: "reference, maxDrawdownBps" },
-  { icon: Droplets, name: "Liquidity Guard", desc: "Emergency protection tied to liquidity-event monitoring.", trigger: "Emergency", params: "threshold" },
-  { icon: Siren, name: "Emergency Protection", desc: "Explicit emergency condition for rapid protective action.", trigger: "Emergency", params: "threshold" },
+  { icon: Shield, name: "Safe Exit", desc: "Stop-loss that moves protected funds to your wallet when price drops below threshold.", trigger: "Stop-Loss", triggerValue: 0, params: "threshold, amount" },
+  { icon: TrendingUp, name: "Profit Lock", desc: "Take-profit that secures gains when price reaches your target.", trigger: "Take-Profit", triggerValue: 1, params: "threshold, amount" },
+  { icon: Activity, name: "Volatility Shield", desc: "Maximum drawdown guard from a recorded reference price.", trigger: "Max Drawdown", triggerValue: 2, params: "reference, maxDrawdown%" },
+  { icon: AlertTriangle, name: "Maximum Drawdown Guard", desc: "Triggers when loss from reference exceeds configured bps.", trigger: "Max Drawdown", triggerValue: 2, params: "reference, maxDrawdownBps" },
+  { icon: Droplets, name: "Liquidity Guard", desc: "Emergency protection tied to liquidity-event monitoring.", trigger: "Emergency", triggerValue: 3, params: "threshold" },
+  { icon: Siren, name: "Emergency Protection", desc: "Explicit emergency condition for rapid protective action.", trigger: "Emergency", triggerValue: 3, params: "threshold" },
 ];
 
 export default function MarketplacePage() {
@@ -21,7 +21,7 @@ export default function MarketplacePage() {
       <main className="mx-auto max-w-7xl px-4 py-8">
         <PageHeader title="Policy Marketplace" description="Reusable protection templates. Customize parameters and activate on-chain." />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {templates.map(({ icon: Icon, name, desc, trigger, params }) => (
+          {templates.map(({ icon: Icon, name, desc, trigger, triggerValue, params }) => (
             <Card key={name} className="flex flex-col">
               <div className="flex items-center gap-3">
                 <Icon className="h-6 w-6 text-accent" />
@@ -32,7 +32,7 @@ export default function MarketplacePage() {
                 <Badge tone="accent">{trigger}</Badge>
                 <span className="text-xs text-foreground/40">{params}</span>
               </div>
-              <Link href="/policies/create" className="mt-4 rounded-lg border border-border px-4 py-2 text-center text-sm font-medium hover:bg-card">
+              <Link href={`/policies/create?trigger=${triggerValue}&template=${encodeURIComponent(name)}`} className="mt-4 rounded-lg border border-border px-4 py-2 text-center text-sm font-medium hover:bg-card">
                 Use Template
               </Link>
             </Card>

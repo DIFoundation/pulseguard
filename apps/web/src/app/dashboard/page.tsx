@@ -1,7 +1,7 @@
 "use client";
 
 import { Navbar } from "@/components/Navbar";
-import { PageHeader, StatCard, Card, Badge } from "@/components/ui";
+import { PageHeader, StatCard, Card, Badge, Skeleton } from "@/components/ui";
 import { useAccount } from "wagmi";
 import { useVault, usePolicies } from "@/hooks/useContracts";
 import { deployments, isConfigured, baseSepolia, unichainSepolia } from "@pulseguard/config";
@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const protectedValue = balance.data ? formatTokenAmount(balance.data as bigint) : "—";
   const totalValue = totalDeposits.data ? formatTokenAmount(totalDeposits.data as bigint) : "—";
   const policyCount = nextId.data ? Number(nextId.data) - 1 : null;
+  const statsLoading = balance.isLoading || totalDeposits.isLoading || nextId.isLoading;
 
   return (
     <div className="min-h-screen">
@@ -38,9 +39,9 @@ export default function DashboardPage() {
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Your Protected Balance" value={isConnected ? protectedValue : "—"} sub="vault shares (asset units)" />
-          <StatCard label="Total Vault Deposits" value={totalValue} sub="all users, Base Sepolia" />
-          <StatCard label="Policies Created" value={policyCount ?? "—"} sub="on-chain policy count" />
+          <StatCard label="Your Protected Balance" value={isConnected ? (statsLoading ? <Skeleton className="h-8 w-24" /> : protectedValue) : "—"} sub="vault shares (asset units)" />
+          <StatCard label="Total Vault Deposits" value={statsLoading ? <Skeleton className="h-8 w-24" /> : totalValue} sub="all users, Base Sepolia" />
+          <StatCard label="Policies Created" value={statsLoading ? <Skeleton className="h-8 w-16" /> : (policyCount ?? "—")} sub="on-chain policy count" />
           <StatCard label="Networks" value="2" sub="Base Sepolia · Unichain Sepolia" />
         </div>
 

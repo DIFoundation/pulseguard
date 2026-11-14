@@ -5,7 +5,7 @@ import { useReadContract, usePublicClient } from "wagmi";
 import { decodeEventLog, type Abi, type Hash } from "viem";
 import { formatPrice, formatTokenAmount, shortAddress, shortHash } from "@/lib/format";
 import { Navbar } from "@/components/Navbar";
-import { PageHeader, Card, Badge } from "@/components/ui";
+import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
 import { deployments, isConfigured, baseSepolia, unichainSepolia } from "@pulseguard/config";
 import {
   PulseGuardVaultAbi,
@@ -25,6 +25,7 @@ interface ActivityEvent {
   source: string;
   eventName: string;
   summary: string;
+  latencySeconds?: number;
 }
 
 interface Source {
@@ -48,6 +49,8 @@ const SOURCES: Source[] = [
 ];
 
 const TRIGGER_NAMES = ["STOP_LOSS", "TAKE_PROFIT", "MAX_DRAWDOWN", "EMERGENCY"];
+
+const EXECUTION_EVENTS = new Set(["ProtectionExecuted", "CrossChainProtectionRecorded", "ProtectedExit"]);
 
 function summarize(eventName: string, args: Record<string, unknown>): string {
   switch (eventName) {
@@ -105,12 +108,15 @@ async function fetchAddressLogs(address: string, base: string): Promise<Blocksco
   return all;
 }
 
+const PAGE_SIZE = 20;
+
 export default function ActivityPage() {
     const baseClient = usePublicClient({ chainId: baseSepolia.id });
     const uniClient = usePublicClient({ chainId: unichainSepolia.id });
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
   const uniAddr = deployments.crossChainExecutor.address as `0x${string}`;
   const { data: recordCount } = useReadContract({
@@ -183,8 +189,23 @@ export default function ActivityPage() {
           for (const e of evts) e.timestamp = tsMap.get(e.blockNumber);
         }
 
+        // Pair each execution event with the most recent preceding PriceUpdated
+        const byTime = [...collected].sort((a, b) => Number((a.timestamp ?? 0n) - (b.timestamp ?? 0n)));
+        let lastPriceTs: bigint | undefined;
+        for (const e of byTime) {
+          if (e.eventName === "PriceUpdated" && e.timestamp) {
+            lastPriceTs = e.timestamp;
+          } else if (EXECUTION_EVENTS.has(e.eventName) && e.timestamp && lastPriceTs !== undefined) {
+            const delta = Number(e.timestamp - lastPriceTs);
+            if (delta >= 0 && delta < 86400) e.latencySeconds = delta;
+          }
+        }
+
         collected.sort((x, y) => Number(y.timestamp ?? 0n) - Number(x.timestamp ?? 0n));
-        if (!cancelled) setEvents(collected.slice(0, 50));
+        if (!cancelled) {
+          setEvents(collected.slice(0, 200));
+          setPage(0);
+        }
       } catch (err) {
         console.error("activity load failed", err);
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
@@ -230,7 +251,17 @@ export default function ActivityPage() {
             Live on-chain events across Base Sepolia and Unichain Sepolia.
           </p>
           {loading ? (
-            <p className="mt-4 text-sm text-foreground/50">Loading events…</p>
+            <div className="mt-4 space-y-3">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              ))}
+            </div>
           ) : error ? (
             <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
               Failed to load events: {error}
@@ -240,6 +271,7 @@ export default function ActivityPage() {
               No events found yet — see docs/DEMO_SCRIPT.md for the demo flow.
             </div>
           ) : (
+            <>
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -253,7 +285,7 @@ export default function ActivityPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {events.map((e) => (
+                  {events.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((e) => (
                     <tr key={e.key} className="border-b border-border/50 last:border-0">
                       <td className="py-2 pr-4 whitespace-nowrap text-foreground/60">
                         {e.timestamp ? new Date(Number(e.timestamp) * 1000).toLocaleTimeString() : "—"}
@@ -264,7 +296,14 @@ export default function ActivityPage() {
                       <td className="py-2 pr-4">
                         <Badge>{e.source}</Badge>
                       </td>
-                      <td className="py-2 pr-4 font-mono text-xs">{e.eventName}</td>
+                      <td className="py-2 pr-4 font-mono text-xs">
+                        {e.eventName}
+                        {e.latencySeconds !== undefined && (
+                          <span className="ml-2 rounded bg-accent/10 px-1.5 py-0.5 font-sans text-[10px] text-accent">
+                            ⚡ {e.latencySeconds < 60 ? `${e.latencySeconds}s` : `${Math.floor(e.latencySeconds / 60)}m ${e.latencySeconds % 60}s`}
+                          </span>
+                        )}
+                      </td>
                       <td className="py-2 pr-4 text-foreground/80">{e.summary}</td>
                       <td className="py-2">
                         <a
@@ -281,6 +320,30 @@ export default function ActivityPage() {
                 </tbody>
               </table>
             </div>
+            {events.length > PAGE_SIZE && (
+              <div className="mt-4 flex items-center justify-between text-sm text-foreground/60">
+                <span>
+                  Page {page + 1} of {Math.ceil(events.length / PAGE_SIZE)} · {events.length} events
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-card disabled:opacity-40"
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.min(Math.ceil(events.length / PAGE_SIZE) - 1, p + 1))}
+                    disabled={(page + 1) * PAGE_SIZE >= events.length}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-card disabled:opacity-40"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </Card>
       </main>

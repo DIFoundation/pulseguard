@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
-import { PageHeader, Card, Badge } from "@/components/ui";
+import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
 import { usePolicies } from "@/hooks/useContracts";
 import { deployments, isConfigured, baseSepolia } from "@pulseguard/config";
 import { ProtectionManagerAbi } from "@pulseguard/abi";
@@ -78,7 +79,8 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
   onDeactivate: (id: bigint) => void; onCancel: (id: bigint) => void;
   isPending: boolean; owner?: `0x${string}`;
 }) {
-  const { data: policyRaw } = useReadContract({
+  const [expanded, setExpanded] = useState(false);
+  const { data: policyRaw, isLoading } = useReadContract({
     abi: ProtectionManagerAbi,
     address: deployments.protectionManager.address as `0x${string}`,
     functionName: "getPolicy",
@@ -94,6 +96,16 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
     status: number; createdAt: number; expiresAt: number; executedAt: number;
   }
   const policy = policyRaw as Policy | undefined;
+  if (isLoading) {
+    return (
+      <Card className="flex items-center gap-4">
+        <Skeleton className="h-4 w-10" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+        <Skeleton className="h-5 w-24 rounded-full" />
+        <Skeleton className="h-4 flex-1" />
+      </Card>
+    );
+  }
   if (!policy) return null;
   const status = Number(policy.status);
   if (filter === "active" && status !== 1) return null;
@@ -102,20 +114,36 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
 
   const isOwner = owner?.toLowerCase() === policy.owner.toLowerCase();
 
+  const fmtTs = (ts: number) => (ts > 0 ? new Date(ts * 1000).toLocaleString() : "—");
+
   return (
     <Card className="flex flex-wrap items-center justify-between gap-4">
-      <div className="min-w-0">
-        <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <button onClick={() => setExpanded(!expanded)} className="flex w-full items-center gap-3 text-left">
           <span className="font-mono text-sm text-accent">#{id.toString()}</span>
           <Badge tone={STATUS_TONES[status] ?? "default"}>{STATUS_LABELS[status]}</Badge>
           <Badge tone="accent">{TRIGGER_LABELS[Number(policy.triggerType)]}</Badge>
-        </div>
+          {expanded ? <ChevronUp className="ml-auto h-4 w-4 text-foreground/40" /> : <ChevronDown className="ml-auto h-4 w-4 text-foreground/40" />}
+        </button>
         <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-foreground/50">
           <span>Asset: <span className="font-mono" title={policy.asset}>{shortAddress(policy.asset)}</span></span>
           <span>Threshold: {formatPrice(policy.threshold)}</span>
           <span>Amount: {formatTokenAmount(policy.protectedAmount)} tokens</span>
           <span>Dest chain: {policy.destinationChainId.toString()}</span>
         </div>
+        {expanded && (
+          <div className="mt-4 grid gap-x-8 gap-y-2 border-t border-border/50 pt-4 text-xs sm:grid-cols-2">
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Owner</span><span className="font-mono" title={policy.owner}>{shortAddress(policy.owner)}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Recipient</span><span className="font-mono" title={policy.recipient}>{shortAddress(policy.recipient)}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Monitored asset</span><span className="font-mono" title={policy.monitoredAsset}>{shortAddress(policy.monitoredAsset)}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Reference price</span><span>{policy.referencePrice > 0n ? formatPrice(policy.referencePrice) : "—"}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Max drawdown</span><span>{policy.maxDrawdownBps > 0n ? `${Number(policy.maxDrawdownBps) / 100}%` : "—"}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Action</span><span>{policy.action === 0 ? "Protected exit" : `#${policy.action}`}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Created</span><span>{fmtTs(policy.createdAt)}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Expires</span><span>{fmtTs(policy.expiresAt)}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Executed</span><span>{fmtTs(policy.executedAt)}</span></div>
+          </div>
+        )}
       </div>
       {isOwner && (status === 1 || status === 0) && (
         <div className="flex gap-2">

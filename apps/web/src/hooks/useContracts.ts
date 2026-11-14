@@ -1,8 +1,9 @@
 "use client";
 
-import { useConnection, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useConnection, usePublicClient, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { baseSepolia, deployments, isConfigured } from "@pulseguard/config";
 import { PulseGuardVaultAbi, ProtectionManagerAbi, MockPriceFeedAbi } from "@pulseguard/abi";
+import { erc20Abi } from "viem";
 import { useState } from "react";
 
 export function useVault() {
@@ -27,8 +28,62 @@ export function useVault() {
     query: { enabled: isConfigured("vault") },
   });
 
-  const { writeContract, data: txHash, isPending, error } = useWriteContract();
+  const { writeContract, writeContractAsync, data: txHash, isPending, error } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash: txHash });
+  const publicClient = usePublicClient({ chainId: baseSepolia.id });
+  const [flowStep, setFlowStep] = useState<"idle" | "approving" | "depositing">("idle");
+  const [flowHash, setFlowHash] = useState<`0x${string}` | undefined>();
+  const flowReceipt = useWaitForTransactionReceipt({ hash: flowHash });
+
+  const allowance = useReadContract({
+    abi: erc20Abi,
+    address: isConfigured("vault") && isConfigured("testToken") ? tokenAddr : undefined,
+    functionName: "allowance",
+    args: address ? [address, vaultAddr] : undefined,
+    chainId: baseSepolia.id,
+    query: { enabled: !!address && isConfigured("vault") && isConfigured("testToken") },
+  });
+
+  /// @dev Two-step deposit: approve the vault for the asset if needed, then deposit.
+  const depositWithApproval = async (amount: bigint) => {
+    if (!publicClient || !address || amount === 0n) return;
+    try {
+      const current = (await publicClient.readContract({
+        abi: erc20Abi,
+        address: tokenAddr,
+        functionName: "allowance",
+        args: [address, vaultAddr],
+      })) as bigint;
+
+      if (current < amount) {
+        setFlowStep("approving");
+        const approveHash = await writeContractAsync({
+          abi: erc20Abi,
+          address: tokenAddr,
+          functionName: "approve",
+          args: [vaultAddr, amount],
+          chainId: baseSepolia.id,
+        });
+        setFlowHash(approveHash);
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      }
+
+      setFlowStep("depositing");
+      const depositHash = await writeContractAsync({
+        abi: PulseGuardVaultAbi,
+        address: vaultAddr,
+        functionName: "deposit",
+        args: [amount],
+        chainId: baseSepolia.id,
+      });
+      setFlowHash(depositHash);
+      await publicClient.waitForTransactionReceipt({ hash: depositHash });
+    } catch {
+      // user rejected or tx failed — error surfaces via useWriteContract state
+    } finally {
+      setFlowStep("idle");
+    }
+  };
 
   const deposit = (amount: bigint) =>
     writeContract({
@@ -48,7 +103,7 @@ export function useVault() {
       chainId: baseSepolia.id,
     });
 
-  return { balance, totalDeposits, deposit, withdraw, isPending, txHash, receipt, error, tokenAddr };
+  return { balance, totalDeposits, deposit, depositWithApproval, withdraw, allowance, flowStep, flowHash, flowReceipt, isPending, txHash, receipt, error, tokenAddr };
 }
 
 export function usePolicies() {

@@ -40,6 +40,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
     event PolicyDeactivated(uint256 indexed id);
     event PolicyCancelled(uint256 indexed id);
     event PolicyExecuted(uint256 indexed id, address indexed executor);
+    event PolicyExpired(uint256 indexed id);
     /// @notice Full policy snapshot for Reactive mirror synchronization.
     /// @dev Consumed by PulseGuardReactive on Lasna via event subscription.
     ///      `active` is true on create/activate, false on deactivate/cancel/execute.
@@ -176,8 +177,11 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         if (executorForChain[p.destinationChainId] != msg.sender) revert ProtectionErrors.NotExecutor();
         if (p.status != ProtectionTypes.PolicyStatus.ACTIVE) revert ProtectionErrors.PolicyNotActive();
         if (p.expiresAt != 0 && block.timestamp > p.expiresAt) {
+            // Persist the expiry transition — a revert here would roll it back.
             p.status = ProtectionTypes.PolicyStatus.EXPIRED;
-            revert ProtectionErrors.PolicyExpired();
+            emit PolicyExpired(id);
+            _emitMirrorSync(p, false);
+            return;
         }
 
         (uint256 price,) = priceFeed.latestPrice(p.monitoredAsset);

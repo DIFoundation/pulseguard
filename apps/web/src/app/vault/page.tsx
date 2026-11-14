@@ -10,8 +10,8 @@ import { formatTokenAmount, shortAddress } from "@/lib/format";
 import { useAccount } from "wagmi";
 
 export default function VaultPage() {
-  const { address, isConnected } = useAccount();
-  const { balance, totalDeposits, deposit, withdraw, isPending, txHash, receipt, error, tokenAddr } = useVault();
+  const { isConnected } = useAccount();
+  const { balance, totalDeposits, depositWithApproval, withdraw, flowStep, flowHash, flowReceipt, isPending, txHash, receipt, error, tokenAddr } = useVault();
   const [amount, setAmount] = useState("");
 
   const configured = isConfigured("vault");
@@ -22,7 +22,7 @@ export default function VaultPage() {
 
   const handleDeposit = () => {
     try {
-      deposit(parseEther(amount || "0"));
+      depositWithApproval(parseEther(amount || "0"));
     } catch { /* invalid input */ }
   };
   const handleWithdraw = () => {
@@ -65,15 +65,15 @@ export default function VaultPage() {
               className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
             />
             <div className="mt-4 flex gap-3">
-              <button onClick={handleDeposit} disabled={!isConnected || isPending || !configured} className="flex-1 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-                {isPending ? "Depositing…" : "Deposit"}
+              <button onClick={handleDeposit} disabled={!isConnected || isPending || flowStep !== "idle" || !configured} className="flex-1 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+                {flowStep === "approving" ? "Approving…" : flowStep === "depositing" ? "Depositing…" : "Deposit"}
               </button>
               <button onClick={handleWithdraw} disabled={!isConnected || isPending || !configured} className="flex-1 rounded-lg border border-border px-4 py-2 text-sm font-medium disabled:opacity-50">
                 Withdraw
               </button>
             </div>
-            {txHash && <p className="mt-3 break-all font-mono text-xs text-foreground/50">tx: {txHash}</p>}
-            {receipt.isSuccess && <Badge tone="success">Confirmed</Badge>}
+            {(txHash || flowHash) && <p className="mt-3 break-all font-mono text-xs text-foreground/50">tx: {flowHash ?? txHash}</p>}
+            {(receipt.isSuccess || flowReceipt.isSuccess) && <Badge tone="success">Confirmed</Badge>}
             {error && <p className="mt-2 text-sm text-danger">{error.message.slice(0, 120)}</p>}
             <p className="mt-4 text-xs text-foreground/40">
               Protected exits can only be triggered by an authenticated Reactive callback per your active policy.

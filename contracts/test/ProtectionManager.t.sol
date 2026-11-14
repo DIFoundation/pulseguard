@@ -169,6 +169,26 @@ contract ProtectionManagerTest is Test {
         manager.executePolicy(id);
     }
 
+    function testExpiredPolicyTransitionsWithoutRevert() public {
+        vm.warp(100);
+        ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p.expiresAt = 50; // already expired at timestamp 100
+        vm.prank(user);
+        uint256 id = manager.createPolicy(p);
+
+        vm.prank(operator);
+        feed.updatePrice(ASSET, 100e8); // trigger condition met, but expired
+        vm.prank(executor);
+        manager.executePolicy(id); // must NOT revert — marks EXPIRED and returns
+
+        assertEq(uint8(manager.getPolicy(id).status), uint8(ProtectionTypes.PolicyStatus.EXPIRED));
+
+        // Second call reverts: no longer ACTIVE
+        vm.prank(executor);
+        vm.expectRevert(ProtectionErrors.PolicyNotActive.selector);
+        manager.executePolicy(id);
+    }
+
     function testTriggerNotMetOnExecute() public {
         vm.prank(user);
         uint256 id = manager.createPolicy(_policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8));

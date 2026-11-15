@@ -187,9 +187,11 @@ export default function ActivityPage() {
         const reactiveAddr = deployments.reactive.address as `0x${string}`;
         if (isConfigured("reactive") && reactiveAddr) {
           try {
+            // Bound the range — Lasna RPC rejects/times out on fromBlock 0.
+            const latest = await lasnaClient.getBlockNumber();
             const logs = await lasnaClient.getLogs({
               address: reactiveAddr,
-              fromBlock: 0n,
+              fromBlock: latest > 200_000n ? latest - 200_000n : 0n,
               toBlock: "latest",
             });
             const tsCache = new Map<bigint, bigint>();
@@ -304,8 +306,10 @@ export default function ActivityPage() {
     };
 
     load();
+    const interval = setInterval(load, 20_000); // live refresh
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [baseClient, uniClient]);
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { usePolicies } from "@/hooks/useContracts";
@@ -26,8 +26,13 @@ export default function CreatePolicyPage() {
 
 function CreatePolicyForm() {
   const { address, isConnected } = useAccount();
+  const router = useRouter();
   const { createPolicy, isPending, txHash, receipt, error } = usePolicies();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (receipt.isSuccess) router.push("/policies");
+  }, [receipt.isSuccess, router]);
   const templateName = searchParams.get("template");
 
   const initialTrigger = (() => {

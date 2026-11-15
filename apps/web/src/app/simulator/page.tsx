@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
+import { usePriceFeed } from "@/hooks/useContracts";
+import { deployments, isConfigured } from "@pulseguard/config";
+import { useAccount } from "wagmi";
+import { parseUnits } from "viem";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 interface Scenario {
@@ -16,6 +20,17 @@ interface Scenario {
 }
 
 export default function SimulatorPage() {
+  const { address, isConnected } = useAccount();
+  const { updatePrice, isPending: pricePending, txHash: priceTx, receipt: priceReceipt } = usePriceFeed();
+  const [publishPrice, setPublishPrice] = useState("1900");
+  const feedAsset = deployments.testToken.address as `0x${string}`;
+
+  const handlePublish = () => {
+    const p = parseFloat(publishPrice);
+    if (!p || p <= 0 || !feedAsset) return;
+    updatePrice(feedAsset, parseUnits(publishPrice, 8));
+  };
+
   const [reference, setReference] = useState("2000");
   const [hypothetical, setHypothetical] = useState("1800");
   const [stopLossPct, setStopLossPct] = useState("5");
@@ -103,6 +118,24 @@ export default function SimulatorPage() {
             </div>
           </Card>
         </div>
+
+        <Card className="mt-6 border-accent/30">
+          <h3 className="font-semibold">Publish Oracle Price <span className="ml-2 text-xs font-normal text-foreground/40">(operator — MockPriceFeed)</span></h3>
+          <p className="mt-1 text-xs text-foreground/50">
+            Publishes a real <code>PriceUpdated</code> event on Base Sepolia — this is what triggers Reactive evaluation.
+          </p>
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div>
+              <label className="text-sm text-foreground/60">Price (USD, 8 decimals)</label>
+              <input value={publishPrice} onChange={(e) => setPublishPrice(e.target.value)} className="mt-1 w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+            </div>
+            <button onClick={handlePublish} disabled={!isConnected || pricePending || !isConfigured("priceFeed")} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+              {pricePending ? "Publishing…" : "Publish Price"}
+            </button>
+          </div>
+          {priceTx && <p className="mt-3 break-all font-mono text-xs text-foreground/50">tx: {priceTx}</p>}
+          {priceReceipt.isSuccess && <Badge tone="success">Price published — watch Activity for the reactive pipeline</Badge>}
+        </Card>
 
         <Card className="mt-6">
           <h3 className="font-semibold">Simulation History</h3>

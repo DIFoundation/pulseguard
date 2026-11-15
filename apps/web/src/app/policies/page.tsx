@@ -28,7 +28,8 @@ export default function PoliciesPage() {
   const [statuses, setStatuses] = useState<Record<string, number>>({});
 
   const count = nextId.data ? Number(nextId.data) : 0;
-  const ids = Array.from({ length: Math.min(count - 1, 50) }, (_, i) => BigInt(i + 1));
+  // Newest first — policy ids are sequential, so iterate descending.
+  const ids = Array.from({ length: Math.min(count - 1, 50) }, (_, i) => BigInt(count - 1 - i));
 
   const reportStatus = useCallback((id: bigint, status: number) => {
     setStatuses((prev) => (prev[id.toString()] === status ? prev : { ...prev, [id.toString()]: status }));
@@ -139,7 +140,7 @@ function PolicyProbe({ id, onStatus }: { id: bigint; onStatus: (id: bigint, stat
     functionName: "getPolicy",
     args: [id],
     chainId: baseSepolia.id,
-    query: { enabled: isConfigured("protectionManager") },
+    query: { enabled: isConfigured("protectionManager"), refetchInterval: 8000 },
   });
   useEffect(() => {
     const raw = data as { status?: number } | undefined;
@@ -160,7 +161,7 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
     functionName: "getPolicy",
     args: [id],
     chainId: baseSepolia.id,
-    query: { enabled: isConfigured("protectionManager") },
+    query: { enabled: isConfigured("protectionManager"), refetchInterval: 8000 },
   });
 
   interface Policy {

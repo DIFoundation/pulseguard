@@ -17,7 +17,7 @@ export function useVault() {
     functionName: "balances",
     args: address ? [address] : undefined,
     chainId: baseSepolia.id,
-    query: { enabled: !!address && isConfigured("vault") },
+    query: { enabled: !!address && isConfigured("vault"), refetchInterval: 5000 },
   });
 
   const totalDeposits = useReadContract({
@@ -25,7 +25,7 @@ export function useVault() {
     address: isConfigured("vault") ? vaultAddr : undefined,
     functionName: "totalDeposits",
     chainId: baseSepolia.id,
-    query: { enabled: isConfigured("vault") },
+    query: { enabled: isConfigured("vault"), refetchInterval: 5000 },
   });
 
   const { writeContract, writeContractAsync, data: txHash, isPending, error } = useWriteContract();
@@ -41,7 +41,7 @@ export function useVault() {
     functionName: "allowance",
     args: address ? [address, vaultAddr] : undefined,
     chainId: baseSepolia.id,
-    query: { enabled: !!address && isConfigured("vault") && isConfigured("testToken") },
+    query: { enabled: !!address && isConfigured("vault") && isConfigured("testToken"), refetchInterval: 5000 },
   });
 
   /// @dev Two-step deposit: approve the vault for the asset if needed, then deposit.
@@ -115,7 +115,7 @@ export function usePolicies() {
     address: isConfigured("protectionManager") ? managerAddr : undefined,
     functionName: "nextPolicyId",
     chainId: baseSepolia.id,
-    query: { enabled: isConfigured("protectionManager") },
+    query: { enabled: isConfigured("protectionManager"), refetchInterval: 10000 },
   });
 
   const { writeContract, data: txHash, isPending, error } = useWriteContract();

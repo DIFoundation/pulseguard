@@ -4,13 +4,13 @@
   "rpc": "https://lasna-rpc.rnk.dev/",
   "explorer": "https://lasna.reactscan.net",
   "deployed": true,
-  "deployedAt": "2026-11-14",
+  "deployedAt": "2026-11-15",
   "deployer": "0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67",
   "contracts": {
     "PulseGuardReactive": {
-      "address": "0x94766448920032f9cb892e277731f77164512b66",
-      "txHash": "0x6301bf9f41a13669038dcc1d277e970eafabdd39a8ee2e1f3c0a80f06b182cc5",
-      "block": 8329041
+      "address": "0x79d74e8799881524de20cc294744137db840853f",
+      "txHash": "0xa428a591796dc4ccafa6a3fdda63a794e3a950432811217e4843d2413473c154",
+      "block": 8386771
     }
   }
 }

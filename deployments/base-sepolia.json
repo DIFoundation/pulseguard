@@ -4,7 +4,7 @@
   "rpc": "https://sepolia.base.org",
   "explorer": "https://sepolia.basescan.org",
   "deployed": true,
-  "deployedAt": "2026-11-14",
+  "deployedAt": "2026-11-15",
   "deployer": "0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67",
   "contracts": {
     "MockERC20": {
@@ -23,14 +23,14 @@
       "block": 58697552
     },
     "ProtectionManager": {
-      "address": "0x8FFd9a40C48854D34C83167b9f1C5c2eacBD503e",
-      "txHash": "0xf369a0938e0193c8e411f9875689edb2a2809d657e1bac7bd8aff890fe12fc4f",
-      "block": 58697552
+      "address": "0x98BDCD32229f39C821313Ab5eEA458E862A2EFCe",
+      "txHash": "0x15b77d61dde8631258f625a4deeec8e577c1d5eb490db761b25f6829fa301ad9",
+      "block": 59005041
     },
     "ProtectionExecutor": {
-      "address": "0x155611ac1eedd111d645f0de9637e5f6fff815f9",
-      "txHash": "0x9272d036b3ba1bbe9276a8be27a7d35e29d0efe13e72dec139244f4b802bc0f6",
-      "block": 58700086
+      "address": "0xdbacf3cd9face330b91897f9523f068cf6764bd8",
+      "txHash": "0x1611e7696d660dbb14f7eb4b660c4d99c96d524ffa94be5a7626d594948fd19a",
+      "block": 59005559
     }
   }
 }

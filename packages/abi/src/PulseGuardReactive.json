@@ -16,6 +16,16 @@
         "name": "priceTopic0_",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "manager_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "policySyncTopic0_",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "payable"
@@ -233,6 +243,19 @@
   },
   {
     "type": "function",
+    "name": "policySyncTopic0",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "priceFeed",
     "inputs": [],
     "outputs": [
@@ -329,6 +352,13 @@
         ]
       }
     ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "resubscribe",
+    "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
   },

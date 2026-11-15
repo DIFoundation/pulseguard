@@ -10,7 +10,7 @@
     "CrossChainExecutor": {
       "address": "0x94766448920032f9Cb892e277731F77164512B66",
       "txHash": "0x3bb87ef4e0e7ab7b1da4186f4bab0a6d253c57843db58cd98e2d89d4f8b38095",
-      "block": null
+      "block": 67809530
     }
   }
 }

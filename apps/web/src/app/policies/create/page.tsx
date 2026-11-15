@@ -10,7 +10,7 @@ import { useAccount } from "wagmi";
 import { parseEther, parseUnits } from "viem";
 
 const TRIGGERS = [
-  { value: 0, label: "Stop-Loss", desc: "Triggers when price falls to or below threshold" },
+  { value: 0, label: "Stop-Loss", desc: "Triggers when price falls to or below threshold — executes a protected vault exit to your recipient" },
   { value: 1, label: "Take-Profit", desc: "Triggers when price reaches or exceeds threshold" },
   { value: 2, label: "Max Drawdown", desc: "Triggers when loss from reference exceeds max drawdown" },
   { value: 3, label: "Emergency", desc: "Triggers on explicit emergency price condition" },
@@ -154,7 +154,8 @@ function CreatePolicyForm() {
             </div>
             <p className="mt-4 text-xs text-foreground/50">
               On trigger, Reactive Network will request an authenticated callback. The destination executor re-validates
-              the policy and executes the configured action. Funds go to your wallet, never to an arbitrary address.
+              the policy and performs a protected vault exit — funds transfer to your recipient (no swap/sale is executed),
+              never to an arbitrary address.
             </p>
             <button onClick={handleSubmit} disabled={!canSubmit || isPending} className="mt-6 w-full rounded-lg bg-accent px-4 py-3 font-medium text-white disabled:opacity-50">
               {isPending ? "Creating…" : "Create Policy"}

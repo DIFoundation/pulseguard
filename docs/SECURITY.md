@@ -10,7 +10,7 @@ Testnet hackathon prototype — **not audited**. Do not use with real funds.
 | Unauthorized withdrawal | `protectedExit` restricted to registered executor; funds go to policy `recipient`, never executor |
 | Forged callbacks | `onlyServiceProvider` (must be callback proxy) + `onlyCallbackSender` (must be authorized reactive contract) |
 | Malicious callback params | Executor only forwards `policyId`; manager re-validates policy, status, and live trigger price |
-| Duplicate execution | Reactive dedup `keccak256(txHash, logIndex, policyId)`; manager status transition ACTIVE→EXECUTED is atomic; second call reverts |
+| Duplicate execution | Reactive dedup `keccak256(txHash, logIndex, policyId)` (skipped when no executor registered, so the slot isn't burned); manager status transition ACTIVE→EXECUTED is atomic; second call reverts |
 | Replay | Same dedup + status machine; CrossChainExecutor idempotent per policyId |
 | Wrong event decoding | `opCode==2` check, chainId/contract/topic0 validation, non-matching events return early (no revert) |
 | Wrong chain IDs | `originChainId` immutable; subscription pinned to chain+contract+topic0 |
@@ -30,5 +30,6 @@ Testnet hackathon prototype — **not audited**. Do not use with real funds.
 - **Policy mirroring**: `PulseGuardReactive` keeps an event-synced mirror of policies via `PolicyMirrorSync` (cannot do cross-chain view calls). Mirror drift is possible if events are missed; executor is authoritative.
 - **Single-asset vault**: `executePolicy` only moves funds when `policy.asset == vault.asset()`; other assets mark EXECUTED without transfer (documented).
 - **Cross-chain attestation only**: `CrossChainExecutor` on Unichain records a verifiable attestation of the protection event — it does not move assets. Asset movement happens on Base Sepolia via `ProtectionExecutor`. Attestations are tamper-evident (`verifyAttestation`) but carry no funds.
+- **Policy cap**: `MAX_POLICIES_PER_ASSET` (50) counts live policies only — terminal policies (EXECUTED/CANCELLED/EXPIRED) free their slot.
 - **Mock oracle**: prices are operator-published, not market data.
 - **No independent audit**.

@@ -167,6 +167,10 @@ contract PulseGuardReactive is AbstractReactive {
             if (!mp.active) continue;
             if (!_isTriggered(mp, price)) continue;
 
+            // Don't burn the dedup slot if no executor is registered — the policy
+            // may become deliverable later once setExecutorForChain is called.
+            if (executorForChain[mp.destinationChainId] == address(0)) continue;
+
             bytes32 dedup = keccak256(abi.encode(log_.txHash, log_.logIndex, id));
             if (_callbackRequested[dedup]) continue;
             _callbackRequested[dedup] = true;

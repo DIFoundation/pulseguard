@@ -10,27 +10,27 @@
     "MockERC20": {
       "address": "0x892d78DCE74EC31C44f315A77A170143A8C9950F",
       "txHash": "0xe5325d462b7fd0f6600ec2024ab11409ebc438b61dab4a927062a2039ce0e373",
-      "block": null
+      "block": 58697551
     },
     "MockPriceFeed": {
       "address": "0xD931C24199a65A7A80fc0758272bBb5e4958F4B0",
       "txHash": "0x059c0523bbda5b79a967aba3cf3ce2f6b8bbafb40928ef63e84ffa00e84e3816",
-      "block": null
+      "block": 58697551
     },
     "PulseGuardVault": {
       "address": "0x79Ac47b744b5147FaAFB84A2C3df673B71312dc6",
       "txHash": "0xe98134a6b387e2fc1302e29556b1467925a31b2bbe0fbb9170f38831e3e683c3",
-      "block": null
+      "block": 58697552
     },
     "ProtectionManager": {
       "address": "0x8FFd9a40C48854D34C83167b9f1C5c2eacBD503e",
       "txHash": "0xf369a0938e0193c8e411f9875689edb2a2809d657e1bac7bd8aff890fe12fc4f",
-      "block": null
+      "block": 58697552
     },
     "ProtectionExecutor": {
       "address": "0x155611ac1eedd111d645f0de9637e5f6fff815f9",
       "txHash": "0x9272d036b3ba1bbe9276a8be27a7d35e29d0efe13e72dec139244f4b802bc0f6",
-      "block": null
+      "block": 58700086
     }
   }
 }

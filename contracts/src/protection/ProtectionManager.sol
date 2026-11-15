@@ -20,14 +20,19 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
 
     uint256 public constant MAX_POLICIES_PER_ASSET = 50;
     uint256 public constant BPS_DENOMINATOR = 10_000;
+    /// @notice Max age of a feed price accepted for execution (1 hour).
+    uint256 public constant MAX_PRICE_AGE = 1 hours;
 
     IPriceFeed public immutable priceFeed;
     PulseGuardVault public immutable vault;
 
     uint256 public nextPolicyId = 1;
     mapping(uint256 => ProtectionTypes.Policy) public policies;
-    mapping(address => uint256[]) private _policiesByAsset; // monitoredAsset => policy ids (ACTIVE only tracked loosely)
+    mapping(address => uint256[]) private _policiesByAsset; // monitoredAsset => policy ids (all, incl. terminal)
     mapping(uint256 => bool) private _activeByAsset; // id => in list (for removal simplicity we keep ids and check status)
+    /// @notice monitoredAsset => count of non-terminal policies (CREATED/ACTIVE/TRIGGERED).
+    /// @dev Enforces MAX_POLICIES_PER_ASSET against live policies only, not history.
+    mapping(address => uint256) private _livePolicyCount;
 
     /// @notice Authorized destination executors per chain id.
     mapping(uint256 => address) public executorForChain;
@@ -96,9 +101,10 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         p.createdAt = uint64(block.timestamp);
         policies[id] = p;
         _policiesByAsset[p.monitoredAsset].push(id);
-        if (_policiesByAsset[p.monitoredAsset].length > MAX_POLICIES_PER_ASSET) {
+        if (_livePolicyCount[p.monitoredAsset] >= MAX_POLICIES_PER_ASSET) {
             revert PolicyLimitReached();
         }
+        _livePolicyCount[p.monitoredAsset]++;
         emit PolicyCreated(id, msg.sender, p.asset, uint8(p.triggerType));
         emit PolicyActivated(id);
         _emitMirrorSync(p, true);
@@ -130,6 +136,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
             revert ProtectionErrors.InvalidStatusTransition();
         }
         p.status = ProtectionTypes.PolicyStatus.CANCELLED;
+        _livePolicyCount[p.monitoredAsset]--;
         emit PolicyCancelled(id);
         _emitMirrorSync(p, false);
     }
@@ -179,17 +186,22 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         if (p.expiresAt != 0 && block.timestamp > p.expiresAt) {
             // Persist the expiry transition — a revert here would roll it back.
             p.status = ProtectionTypes.PolicyStatus.EXPIRED;
+            _livePolicyCount[p.monitoredAsset]--;
             emit PolicyExpired(id);
             _emitMirrorSync(p, false);
             return;
         }
 
-        (uint256 price,) = priceFeed.latestPrice(p.monitoredAsset);
+        (uint256 price, uint256 priceTimestamp) = priceFeed.latestPrice(p.monitoredAsset);
         if (price == 0) revert ProtectionErrors.InvalidPrice();
+        if (priceTimestamp == 0 || block.timestamp - priceTimestamp > MAX_PRICE_AGE) {
+            revert ProtectionErrors.StalePrice();
+        }
         if (!_isTriggered(p, price)) revert ProtectionErrors.TriggerNotMet();
 
         p.status = ProtectionTypes.PolicyStatus.EXECUTED;
         p.executedAt = uint64(block.timestamp);
+        _livePolicyCount[p.monitoredAsset]--;
 
         // Move protected funds from vault to the policy recipient.
         if (p.asset == address(vault.asset())) {

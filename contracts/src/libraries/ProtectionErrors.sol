@@ -20,5 +20,6 @@ library ProtectionErrors {
     error UnsupportedChain();
     error TooManyPolicies();
     error InvalidPrice();
+    error StalePrice();
     error Unauthorized();
 }

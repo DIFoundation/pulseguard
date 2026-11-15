@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Shield, TrendingUp, Activity, AlertTriangle, Droplets, Siren } from "lucide-react";
 
 const templates = [
-  { icon: Shield, name: "Safe Exit", desc: "Stop-loss that moves protected funds to your wallet when price drops below threshold.", trigger: "Stop-Loss", triggerValue: 0, params: "threshold, amount" },
+  { icon: Shield, name: "Safe Exit", desc: "Automated vault exit: moves your protected funds to your wallet when price drops below threshold (transfer, not a market sell).", trigger: "Stop-Loss", triggerValue: 0, params: "threshold, amount" },
   { icon: TrendingUp, name: "Profit Lock", desc: "Take-profit that secures gains when price reaches your target.", trigger: "Take-Profit", triggerValue: 1, params: "threshold, amount" },
   { icon: Activity, name: "Volatility Shield", desc: "Maximum drawdown guard from a recorded reference price.", trigger: "Max Drawdown", triggerValue: 2, params: "reference, maxDrawdown%" },
   { icon: AlertTriangle, name: "Maximum Drawdown Guard", desc: "Triggers when loss from reference exceeds configured bps.", trigger: "Max Drawdown", triggerValue: 2, params: "reference, maxDrawdownBps" },

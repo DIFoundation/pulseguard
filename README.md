@@ -6,6 +6,8 @@
 
 PulseGuard lets DeFi users configure programmable protection policies (stop-loss, take-profit, max drawdown, emergency) that are executed automatically by **Reactive Network** — no bots, no polling, no trusted backend.
 
+> **Execution semantics**: a triggered policy performs a *protected vault exit* — an on-chain transfer of your deposited funds to your pre-configured recipient. No swap or market sell is executed.
+
 ## Problem
 
 DeFi users face sudden price declines, drawdowns, and delayed emergency responses. Existing solutions rely on centralized keepers or manual monitoring. PulseGuard makes protection **event-driven and autonomous**: Reactive Network subscribes to on-chain events, evaluates conditions, and delivers authenticated callbacks to destination-chain executors.
@@ -20,13 +22,13 @@ Base Sepolia (origin)          Reactive Lasna              Destinations
 | ProtectionMgr   |           |  - evaluate      |        +---------------------+
 +-----------------+           |  - request cb    |  cb    +---------------------+
                               +------------------+ -----> | Unichain Executor    |
-                                                          |  - cross-chain state |
+                                                          |  - attestation record  |
                                                           +---------------------+
 ```
 
 - **Origin**: Base Sepolia — vault, policy manager, mock price feed.
 - **Reactive**: Lasna — `PulseGuardReactive` subscribes to `PriceUpdated`, evaluates mirrored policies, requests callbacks via `SYSTEM.requestCallbackV_1_0`.
-- **Destinations**: Base Sepolia executor (executes real vault action) + Unichain Sepolia executor (cross-chain state record).
+- **Destinations**: Base Sepolia executor (executes real vault action) + Unichain Sepolia executor (verifiable cross-chain attestation of the protection event).
 
 See `docs/ARCHITECTURE.md` and `docs/REACTIVE_INTEGRATION.md`.
 
@@ -48,7 +50,7 @@ pulseguard/
 # Contracts
 cd contracts
 forge install   # if needed
-forge test      # 30 tests
+forge test      # 35 tests
 
 # Frontend
 pnpm install
@@ -58,7 +60,7 @@ pnpm --filter web dev
 
 ## Status
 
-- ✅ Smart contracts implemented + 30 Foundry tests passing
+- ✅ Smart contracts implemented + 35 Foundry tests passing
 - ✅ Reactive Omni integration (`AbstractReactive`/`AbstractCallback`, `requestCallbackV_1_0`)
 - ✅ Deployed on Base Sepolia, Unichain Sepolia, and Reactive Lasna (2026-11-14) — see `deployments/*.json`
 - ✅ Next.js frontend: landing, dashboard, vault, policies, marketplace, simulator, activity (multi-chain, paginated, latency badges), settings

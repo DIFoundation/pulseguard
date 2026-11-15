@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useReadContract, usePublicClient } from "wagmi";
-import { decodeEventLog, type Abi, type Hash } from "viem";
+import { decodeEventLog, createPublicClient, http, type Abi, type Hash } from "viem";
 import { formatPrice, formatTokenAmount, shortAddress, shortHash } from "@/lib/format";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
-import { deployments, isConfigured, baseSepolia, unichainSepolia } from "@pulseguard/config";
+import { deployments, isConfigured, baseSepolia, unichainSepolia, reactiveLasna, environment } from "@pulseguard/config";
 import {
   PulseGuardVaultAbi,
   ProtectionManagerAbi,
   ProtectionExecutorAbi,
   MockPriceFeedAbi,
   CrossChainExecutorAbi,
+  PulseGuardReactiveAbi,
 } from "@pulseguard/abi";
 
 interface ActivityEvent {
@@ -25,6 +26,7 @@ interface ActivityEvent {
   source: string;
   eventName: string;
   summary: string;
+  policyId?: string;
   latencySeconds?: number;
 }
 
@@ -39,6 +41,13 @@ interface Source {
 
 const BASE_EXPLORER = "https://sepolia.basescan.org";
 const UNI_EXPLORER = "https://sepolia.uniscan.xyz";
+const LASNA_EXPLORER = "https://lasna.reactscan.net";
+
+// Lasna is not in the wagmi network list (monitoring-only chain) — use a direct viem client.
+const lasnaClient = createPublicClient({
+  chain: reactiveLasna,
+  transport: http(environment.lasnaRpc),
+});
 
 const SOURCES: Source[] = [
   { label: "Price Feed", envKey: "priceFeed", abi: MockPriceFeedAbi, chain: "Base Sepolia", blockscout: "https://base-sepolia.blockscout.com", explorer: BASE_EXPLORER },
@@ -67,7 +76,15 @@ function summarize(eventName: string, args: Record<string, unknown>): string {
     case "ProtectedExit":
       return `protected exit — ${formatTokenAmount(args.amount as bigint)} tokens → ${shortAddress(String(args.recipient))}`;
     case "CrossChainProtectionRecorded":
-      return `cross-chain record — policy #${args.policyId} @ ${formatPrice(args.price as bigint)}`;
+      return `cross-chain attestation — policy #${args.policyId} @ ${formatPrice(args.price as bigint)}`;
+    case "PolicyMirrored":
+      return `policy #${args.id} mirrored on Lasna`;
+    case "PolicyMirrorRemoved":
+      return `policy #${args.id} mirror removed`;
+    case "TriggerEvaluated":
+      return `policy #${args.policyId} trigger evaluated @ ${formatPrice(args.price as bigint)}`;
+    case "CallbackRequested":
+      return `callback requested — policy #${args.policyId} → chain ${args.destinationChainId}`;
     case "Deposited":
       return `deposit — ${formatTokenAmount(args.amount as bigint)} tokens`;
     case "Withdrawn":
@@ -158,10 +175,56 @@ export default function ActivityPage() {
                 source: src.label,
                 eventName,
                 summary: summarize(eventName, args),
+                policyId: args.policyId !== undefined ? String(args.policyId) : args.id !== undefined ? String(args.id) : undefined,
               });
             } catch {
               // log from an event not in this ABI — skip
             }
+          }
+        }
+
+        // Reactive Lasna: no Blockscout API — fetch logs directly via RPC.
+        const reactiveAddr = deployments.reactive.address as `0x${string}`;
+        if (isConfigured("reactive") && reactiveAddr) {
+          try {
+            const logs = await lasnaClient.getLogs({
+              address: reactiveAddr,
+              fromBlock: 0n,
+              toBlock: "latest",
+            });
+            const tsCache = new Map<bigint, bigint>();
+            for (const log of logs) {
+              try {
+                const decoded = decodeEventLog({
+                  abi: PulseGuardReactiveAbi,
+                  data: log.data,
+                  topics: log.topics,
+                });
+                const eventName: string = decoded.eventName ?? "Unknown";
+                if (eventName === "IrrelevantEvent") continue; // noise
+                const args = (decoded.args ?? {}) as unknown as Record<string, unknown>;
+                if (!tsCache.has(log.blockNumber)) {
+                  const b = await lasnaClient.getBlock({ blockNumber: log.blockNumber });
+                  tsCache.set(log.blockNumber, b.timestamp);
+                }
+                collected.push({
+                  key: `Reactive Lasna-${log.transactionHash}-${log.logIndex}`,
+                  txHash: log.transactionHash,
+                  blockNumber: log.blockNumber,
+                  timestamp: tsCache.get(log.blockNumber),
+                  chain: "Reactive Lasna",
+                  explorer: LASNA_EXPLORER,
+                  source: "Reactive Contract",
+                  eventName,
+                  summary: summarize(eventName, args),
+                  policyId: args.policyId !== undefined ? String(args.policyId) : args.id !== undefined ? String(args.id) : undefined,
+                });
+              } catch {
+                // log from an event not in this ABI — skip
+              }
+            }
+          } catch (err) {
+            console.warn("Lasna log fetch failed", err);
           }
         }
 
@@ -189,14 +252,40 @@ export default function ActivityPage() {
           for (const e of evts) e.timestamp = tsMap.get(e.blockNumber);
         }
 
-        // Pair each execution event with the most recent preceding PriceUpdated
-        const byTime = [...collected].sort((a, b) => Number((a.timestamp ?? 0n) - (b.timestamp ?? 0n)));
-        let lastPriceTs: bigint | undefined;
-        for (const e of byTime) {
-          if (e.eventName === "PriceUpdated" && e.timestamp) {
-            lastPriceTs = e.timestamp;
-          } else if (EXECUTION_EVENTS.has(e.eventName) && e.timestamp && lastPriceTs !== undefined) {
-            const delta = Number(e.timestamp - lastPriceTs);
+        // Correlate each execution event to its originating PriceUpdated:
+        // anchor = the policy's CallbackRequested timestamp on Lasna (the react() tx
+        // that consumed the price event), then take the latest PriceUpdated before it.
+        const priceEvents = collected
+          .filter((e) => e.eventName === "PriceUpdated" && e.timestamp !== undefined)
+          .sort((a, b) => Number(a.timestamp! - b.timestamp!));
+
+        const callbackTsByPolicy = new Map<string, bigint>();
+        for (const e of collected) {
+          if (e.eventName === "CallbackRequested" && e.policyId && e.timestamp !== undefined) {
+            callbackTsByPolicy.set(e.policyId, e.timestamp);
+          }
+        }
+
+        // ProtectedExit carries no policyId — recover it from a sibling execution
+        // event in the same transaction (e.g. PolicyExecuted).
+        const policyByTx = new Map<string, string>();
+        for (const e of collected) {
+          if (e.policyId && EXECUTION_EVENTS.has(e.eventName)) {
+            policyByTx.set(e.txHash, e.policyId);
+          }
+        }
+
+        for (const e of collected) {
+          if (!EXECUTION_EVENTS.has(e.eventName) || e.timestamp === undefined) continue;
+          const pid = e.policyId ?? policyByTx.get(e.txHash);
+          const anchor = (pid ? callbackTsByPolicy.get(pid) : undefined) ?? e.timestamp;
+          let priceTs: bigint | undefined;
+          for (const p of priceEvents) {
+            if (p.timestamp! <= anchor) priceTs = p.timestamp;
+            else break;
+          }
+          if (priceTs !== undefined) {
+            const delta = Number(e.timestamp - priceTs);
             if (delta >= 0 && delta < 86400) e.latencySeconds = delta;
           }
         }

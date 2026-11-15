@@ -14,7 +14,7 @@ Testnet hackathon prototype — **not audited**. Do not use with real funds.
 | Replay | Same dedup + status machine; CrossChainExecutor idempotent per policyId |
 | Wrong event decoding | `opCode==2` check, chainId/contract/topic0 validation, non-matching events return early (no revert) |
 | Wrong chain IDs | `originChainId` immutable; subscription pinned to chain+contract+topic0 |
-| Stale/manipulated price | Mock oracle is operator-gated, nonzero enforced; production mode would use Chainlink-style feed with heartbeat checks (documented, not implemented) |
+| Stale/manipulated price | Mock oracle is operator-gated; `executePolicy` rejects prices older than `MAX_PRICE_AGE` (1h) via `StalePrice`; production mode would use Chainlink-style feed with heartbeat checks (documented, not implemented) |
 | Oracle decimals | Fixed 8 decimals in MockPriceFeed; thresholds stored in same units |
 | Integer issues | Solidity 0.8.29 checked arithmetic; drawdown uses bps denominator 10_000 |
 | Insufficient callback gas | `gasLimit=500_000`; proxy reserves overhead; failures surface as `CallbackFailure` |

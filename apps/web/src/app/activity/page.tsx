@@ -186,24 +186,23 @@ export default function ActivityPage() {
           })
         );
 
-        // Reactive Lasna: no Blockscout API — fetch logs directly via RPC.
+        // Reactive Lasna: no Blockscout API — fetch via server-side proxy
+        // (browser RPC getLogs was unreliable: CORS/rate-limit on large ranges).
         const reactiveAddr = deployments.reactive.address as `0x${string}`;
         if (isConfigured("reactive") && reactiveAddr) {
           try {
-            // Lasna RPC chokes on huge ranges — chunk into 10k-block windows,
-            // fetched in parallel. 50k blocks covers ~14-28h of history.
-            const latest = await lasnaClient.getBlockNumber();
-            const from = latest > 50_000n ? latest - 50_000n : 0n;
-            const CHUNK = 10_000n;
-            const ranges: { fromBlock: bigint; toBlock: bigint }[] = [];
-            for (let f = from; f <= latest; f += CHUNK) {
-              const t = f + CHUNK - 1n > latest ? latest : f + CHUNK - 1n;
-              ranges.push({ fromBlock: f, toBlock: t });
-            }
-            const chunks = await Promise.all(
-              ranges.map((r) => lasnaClient.getLogs({ address: reactiveAddr, ...r }))
-            );
-            const logs = chunks.flat();
+            const res = await fetch("/api/lasna-logs", { cache: "no-store" });
+            if (!res.ok) throw new Error(`lasna-logs ${res.status}`);
+            const json = (await res.json()) as {
+              logs?: {
+                blockNumber: string;
+                transactionHash: `0x${string}`;
+                logIndex: string;
+                data: `0x${string}`;
+                topics: [`0x${string}`, ...`0x${string}`[]];
+              }[];
+            };
+            const logs = json.logs ?? [];
             setLasnaFailed(false);
             for (const log of logs) {
               try {
@@ -218,7 +217,7 @@ export default function ActivityPage() {
                 collected.push({
                   key: `Reactive Lasna-${log.transactionHash}-${log.logIndex}`,
                   txHash: log.transactionHash,
-                  blockNumber: log.blockNumber,
+                  blockNumber: BigInt(log.blockNumber),
                   chain: "Reactive Lasna",
                   explorer: LASNA_EXPLORER,
                   source: "Reactive Contract",
@@ -335,7 +334,7 @@ export default function ActivityPage() {
     };
 
     load();
-    const interval = setInterval(load, 30000); // live refresh
+    const interval = setInterval(load, 60000); // live refresh
     return () => {
       cancelled = true;
       clearInterval(interval);

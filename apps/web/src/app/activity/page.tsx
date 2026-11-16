@@ -35,7 +35,7 @@ interface Source {
   envKey: keyof typeof deployments;
   abi: Abi;
   chain: string;
-  blockscout: string;
+  chainKey: "base" | "uni";
   explorer: string;
 }
 
@@ -50,12 +50,25 @@ const lasnaClient = createPublicClient({
 });
 
 const SOURCES: Source[] = [
-  { label: "Price Feed", envKey: "priceFeed", abi: MockPriceFeedAbi, chain: "Base Sepolia", blockscout: "https://base-sepolia.blockscout.com", explorer: BASE_EXPLORER },
-  { label: "Policy Manager", envKey: "protectionManager", abi: ProtectionManagerAbi, chain: "Base Sepolia", blockscout: "https://base-sepolia.blockscout.com", explorer: BASE_EXPLORER },
-  { label: "Executor", envKey: "protectionExecutor", abi: ProtectionExecutorAbi, chain: "Base Sepolia", blockscout: "https://base-sepolia.blockscout.com", explorer: BASE_EXPLORER },
-  { label: "Vault", envKey: "vault", abi: PulseGuardVaultAbi, chain: "Base Sepolia", blockscout: "https://base-sepolia.blockscout.com", explorer: BASE_EXPLORER },
-  { label: "Unichain Executor", envKey: "crossChainExecutor", abi: CrossChainExecutorAbi, chain: "Unichain Sepolia", blockscout: "https://unichain-sepolia.blockscout.com", explorer: UNI_EXPLORER },
+  { label: "Price Feed", envKey: "priceFeed", abi: MockPriceFeedAbi, chain: "Base Sepolia", chainKey: "base", explorer: BASE_EXPLORER },
+  { label: "Policy Manager", envKey: "protectionManager", abi: ProtectionManagerAbi, chain: "Base Sepolia", chainKey: "base", explorer: BASE_EXPLORER },
+  { label: "Executor", envKey: "protectionExecutor", abi: ProtectionExecutorAbi, chain: "Base Sepolia", chainKey: "base", explorer: BASE_EXPLORER },
+  { label: "Vault", envKey: "vault", abi: PulseGuardVaultAbi, chain: "Base Sepolia", chainKey: "base", explorer: BASE_EXPLORER },
+  { label: "Unichain Executor", envKey: "crossChainExecutor", abi: CrossChainExecutorAbi, chain: "Unichain Sepolia", chainKey: "uni", explorer: UNI_EXPLORER },
 ];
+
+// Only lifecycle events relevant to the demo narrative — drops config/admin noise
+// (OwnershipTransferred, Paused, ExecutorForChainSet, ReactiveContractSet,
+// ExecutorUpdated, IrrelevantEvent, Callback, etc.).
+const EVENT_ALLOWLIST = new Set([
+  "PriceUpdated",
+  "PolicyCreated", "PolicyActivated", "PolicyExecuted", "PolicyCancelled",
+  "PolicyDeactivated", "PolicyExpired", "PolicyMirrorSync",
+  "CallbackReceived", "ProtectionExecuted", "ProtectedExit",
+  "CrossChainProtectionRecorded",
+  "PolicyMirrored", "PolicyMirrorRemoved", "TriggerEvaluated", "CallbackRequested",
+  "Deposited", "Withdrawn",
+]);
 
 const TRIGGER_NAMES = ["STOP_LOSS", "TAKE_PROFIT", "MAX_DRAWDOWN", "EMERGENCY"];
 
@@ -94,35 +107,19 @@ function summarize(eventName: string, args: Record<string, unknown>): string {
   }
 }
 
-interface BlockscoutLog {
-  block_number: number;
-  transaction_hash: string;
-  index?: number;
-  log_index?: number;
+interface NormalizedLog {
+  blockNumber: string;
+  transactionHash: `0x${string}`;
+  logIndex: string;
   topics: string[];
   data: string;
 }
 
-interface BlockscoutLogsPage {
-  items: BlockscoutLog[];
-  next_page_params: Record<string, string> | null;
-}
-
-async function fetchAddressLogs(address: string, base: string): Promise<BlockscoutLog[]> {
-  const all: BlockscoutLog[] = [];
-  let url: string | null = `${base}/api/v2/addresses/${address}/logs`;
-  // cap pagination — 4 pages (~200 logs) is plenty for the demo feed
-  for (let page = 0; page < 4 && url; page++) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Blockscout ${res.status} for ${address}`);
-    const json = (await res.json()) as BlockscoutLogsPage;
-    all.push(...(json.items ?? []));
-    const params = json.next_page_params;
-    url = params
-      ? `${base}/api/v2/addresses/${address}/logs?${new URLSearchParams(params).toString()}`
-      : null;
-  }
-  return all;
+async function fetchChainLogs(chainKey: string, address: string): Promise<NormalizedLog[]> {
+  const res = await fetch(`/api/logs?chain=${chainKey}&address=${address}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`logs ${res.status} for ${chainKey}/${address}`);
+  const json = (await res.json()) as { logs?: NormalizedLog[] };
+  return json.logs ?? [];
 }
 
 const PAGE_SIZE = 20;
@@ -158,7 +155,7 @@ export default function ActivityPage() {
           SOURCES.map(async (src) => {
             const info = deployments[src.envKey];
             if (!info.address) return;
-            const logs = await fetchAddressLogs(info.address, src.blockscout);
+            const logs = await fetchChainLogs(src.chainKey, info.address);
             for (const log of logs) {
               try {
                 const decoded = decodeEventLog({
@@ -167,11 +164,12 @@ export default function ActivityPage() {
                   topics: log.topics as [`0x${string}`, ...`0x${string}`[]],
                 });
                 const eventName = decoded.eventName ?? "Unknown";
+                if (!EVENT_ALLOWLIST.has(eventName)) continue; // drop noise
                 const args = (decoded.args ?? {}) as unknown as Record<string, unknown>;
                 collected.push({
-                  key: `${src.chain}-${log.transaction_hash}-${log.index ?? log.log_index ?? 0}`,
-                  txHash: log.transaction_hash as Hash,
-                  blockNumber: BigInt(log.block_number),
+                  key: `${src.chain}-${log.transactionHash}-${log.logIndex}`,
+                  txHash: log.transactionHash,
+                  blockNumber: BigInt(log.blockNumber),
                   chain: src.chain,
                   explorer: src.explorer,
                   source: src.label,
@@ -186,33 +184,22 @@ export default function ActivityPage() {
           })
         );
 
-        // Reactive Lasna: no Blockscout API — fetch via server-side proxy
-        // (browser RPC getLogs was unreliable: CORS/rate-limit on large ranges).
+        // Reactive Lasna: no Blockscout API — fetch via the unified server-side
+        // proxy (browser RPC getLogs was unreliable: CORS/rate-limit on ranges).
         const reactiveAddr = deployments.reactive.address as `0x${string}`;
         if (isConfigured("reactive") && reactiveAddr) {
           try {
-            const res = await fetch("/api/lasna-logs", { cache: "no-store" });
-            if (!res.ok) throw new Error(`lasna-logs ${res.status}`);
-            const json = (await res.json()) as {
-              logs?: {
-                blockNumber: string;
-                transactionHash: `0x${string}`;
-                logIndex: string;
-                data: `0x${string}`;
-                topics: [`0x${string}`, ...`0x${string}`[]];
-              }[];
-            };
-            const logs = json.logs ?? [];
+            const logs = await fetchChainLogs("lasna", reactiveAddr);
             setLasnaFailed(false);
             for (const log of logs) {
               try {
                 const decoded = decodeEventLog({
                   abi: PulseGuardReactiveAbi,
-                  data: log.data,
-                  topics: log.topics,
+                  data: log.data as `0x${string}`,
+                  topics: log.topics as [`0x${string}`, ...`0x${string}`[]],
                 });
                 const eventName: string = decoded.eventName ?? "Unknown";
-                if (eventName === "IrrelevantEvent") continue; // noise
+                if (!EVENT_ALLOWLIST.has(eventName)) continue; // drop noise
                 const args = (decoded.args ?? {}) as unknown as Record<string, unknown>;
                 collected.push({
                   key: `Reactive Lasna-${log.transactionHash}-${log.logIndex}`,

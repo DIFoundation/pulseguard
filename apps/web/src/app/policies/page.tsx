@@ -22,7 +22,7 @@ const PAGE_SIZE = 10;
 
 export default function PoliciesPage() {
   const { address } = useAccount();
-  const { nextId, deactivate, cancel, settle, isPending } = usePolicies();
+  const { nextId, deactivate, cancel, settle, isPending, error } = usePolicies();
   const [filter, setFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
   const [statuses, setStatuses] = useState<Record<string, number>>({});
@@ -95,6 +95,7 @@ export default function PoliciesPage() {
           </Card>
         ) : (
           <>
+          {error && <p className="mb-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2 text-sm text-danger">{error.message.slice(0, 160)}</p>}
           <div className="space-y-3">
             {pageIds.map((id) => (
               <PolicyRow key={id.toString()} id={id} filter={filter} onDeactivate={deactivate} onCancel={cancel} onSettle={settle} isPending={isPending} owner={address} />
@@ -239,7 +240,7 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, onSettle, isPending, ow
       </div>
       {status === 1 && (
         <div className="flex gap-2">
-          {isOwner && (
+          {isOwner && isConfigured("settlementRelay") && (
             <button
               onClick={() => onSettle(id)}
               disabled={isPending}

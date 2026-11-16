@@ -30,17 +30,26 @@ function CreatePolicyForm() {
   const { createPolicy, isPending, txHash, receipt, error } = usePolicies();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    if (receipt.isSuccess) router.push("/policies");
-  }, [receipt.isSuccess, router]);
-  const templateName = searchParams.get("template");
-
   const initialTrigger = (() => {
     const t = searchParams.get("trigger");
     if (t === null) return 0;
     const v = Number(t);
     return v >= 0 && v <= 3 ? v : 0;
   })();
+
+  useEffect(() => {
+    if (!receipt.isSuccess) return;
+    // Reset all form state before leaving — coming back starts clean.
+    setThreshold("");
+    setReferencePrice("");
+    setMaxDrawdownPct("5");
+    setAmount("");
+    setDestChain(84532);
+    setExpiresInDays("");
+    setTriggerType(initialTrigger);
+    router.push("/policies");
+  }, [receipt.isSuccess, router, initialTrigger]);
+  const templateName = searchParams.get("template");
 
   const [triggerType, setTriggerType] = useState(initialTrigger);
   const [threshold, setThreshold] = useState("");

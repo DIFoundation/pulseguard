@@ -31,6 +31,12 @@
       "address": "0xdbacf3cd9face330b91897f9523f068cf6764bd8",
       "txHash": "0x1611e7696d660dbb14f7eb4b660c4d99c96d524ffa94be5a7626d594948fd19a",
       "block": 59005559
+    },
+    "SettlementRelay": {
+      "address": "0x174000Ff3f26F7f40d683992802E1Db6394197B6",
+      "txHash": "0xcc5cee8663b2e9434873598f6994bcb08005a62c40b57fd554e46c1fd09e514b",
+      "block": 59005559,
+      "note": "Registered as ProtectionManager.executorForChain[1301] — settles Unichain-attested policies on Base."
     }
   }
 }

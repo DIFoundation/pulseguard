@@ -125,8 +125,8 @@ async function fetchChainLogs(chainKey: string, address: string): Promise<Normal
 const PAGE_SIZE = 20;
 
 export default function ActivityPage() {
-    const baseClient = usePublicClient({ chainId: baseSepolia.id });
-    const uniClient = usePublicClient({ chainId: unichainSepolia.id });
+  const baseClient = usePublicClient({ chainId: baseSepolia.id });
+  const uniClient = usePublicClient({ chainId: unichainSepolia.id });
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -388,77 +388,77 @@ export default function ActivityPage() {
             </div>
           ) : (
             <>
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-foreground/50">
-                    <th className="py-2 pr-4 font-medium">Time</th>
-                    <th className="py-2 pr-4 font-medium">Chain</th>
-                    <th className="py-2 pr-4 font-medium">Source</th>
-                    <th className="py-2 pr-4 font-medium">Event</th>
-                    <th className="py-2 pr-4 font-medium">Details</th>
-                    <th className="py-2 font-medium">Tx</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((e) => (
-                    <tr key={e.key} className="border-b border-border/50 last:border-0">
-                      <td className="py-2 pr-4 whitespace-nowrap text-foreground/60">
-                        {e.timestamp ? new Date(Number(e.timestamp) * 1000).toLocaleTimeString() : "—"}
-                      </td>
-                      <td className="py-2 pr-4">
-                        <Badge tone={e.chain === "Unichain Sepolia" ? "accent" : "default"}>{e.chain}</Badge>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <Badge>{e.source}</Badge>
-                      </td>
-                      <td className="py-2 pr-4 font-mono text-xs">
-                        {e.eventName}
-                        {e.latencySeconds !== undefined && (
-                          <span className="ml-2 rounded bg-accent/10 px-1.5 py-0.5 font-sans text-[10px] text-accent">
-                            ⚡ {e.latencySeconds < 60 ? `${e.latencySeconds}s` : `${Math.floor(e.latencySeconds / 60)}m ${e.latencySeconds % 60}s`}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 pr-4 text-foreground/80">{e.summary}</td>
-                      <td className="py-2">
-                        <a
-                          href={`${e.explorer}/tx/${e.txHash}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-mono text-xs text-accent hover:underline"
-                        >
-                          {shortHash(e.txHash)}
-                        </a>
-                      </td>
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-foreground/50">
+                      <th className="py-2 pr-4 font-medium">Time</th>
+                      <th className="py-2 pr-4 font-medium">Chain</th>
+                      <th className="py-2 pr-4 font-medium">Source</th>
+                      <th className="py-2 pr-4 font-medium">Event</th>
+                      <th className="py-2 pr-4 font-medium">Details</th>
+                      <th className="py-2 font-medium">Tx</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {events.length > PAGE_SIZE && (
-              <div className="mt-4 flex items-center justify-between text-sm text-foreground/60">
-                <span>
-                  Page {page + 1} of {Math.ceil(events.length / PAGE_SIZE)} · {events.length} events
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={page === 0}
-                    className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-card disabled:opacity-40"
-                  >
-                    ← Prev
-                  </button>
-                  <button
-                    onClick={() => setPage((p) => Math.min(Math.ceil(events.length / PAGE_SIZE) - 1, p + 1))}
-                    disabled={(page + 1) * PAGE_SIZE >= events.length}
-                    className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-card disabled:opacity-40"
-                  >
-                    Next →
-                  </button>
-                </div>
+                  </thead>
+                  <tbody>
+                    {events.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((e) => (
+                      <tr key={e.key} className="border-b border-border/50 last:border-0">
+                        <td className="py-2 pr-4 whitespace-nowrap text-foreground/60">
+                          {e.timestamp ? new Date(Number(e.timestamp) * 1000).toLocaleString() : "—"}
+                        </td>
+                        <td className="py-2 pr-4">
+                          <Badge tone={e.chain === "Unichain Sepolia" ? "accent" : "default"}>{e.chain}</Badge>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <Badge>{e.source}</Badge>
+                        </td>
+                        <td className="py-2 pr-4 font-mono text-xs">
+                          {e.eventName}
+                          {e.latencySeconds !== undefined && (
+                            <span className="ml-2 rounded bg-accent/10 px-1.5 py-0.5 font-sans text-[10px] text-accent">
+                              ⚡ {e.latencySeconds < 60 ? `${e.latencySeconds}s` : `${Math.floor(e.latencySeconds / 60)}m ${e.latencySeconds % 60}s`}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-4 text-foreground/80">{e.summary}</td>
+                        <td className="py-2">
+                          <a
+                            href={`${e.explorer}/tx/${e.txHash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-mono text-xs text-accent hover:underline"
+                          >
+                            {shortHash(e.txHash)}
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
+              {events.length > PAGE_SIZE && (
+                <div className="mt-4 flex items-center justify-between text-sm text-foreground/60">
+                  <span>
+                    Page {page + 1} of {Math.ceil(events.length / PAGE_SIZE)} · {events.length} events
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      disabled={page === 0}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-card disabled:opacity-40"
+                    >
+                      ← Prev
+                    </button>
+                    <button
+                      onClick={() => setPage((p) => Math.min(Math.ceil(events.length / PAGE_SIZE) - 1, p + 1))}
+                      disabled={(page + 1) * PAGE_SIZE >= events.length}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-card disabled:opacity-40"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </Card>

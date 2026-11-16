@@ -22,7 +22,7 @@ const PAGE_SIZE = 10;
 
 export default function PoliciesPage() {
   const { address } = useAccount();
-  const { nextId, deactivate, cancel, isPending } = usePolicies();
+  const { nextId, deactivate, cancel, settle, isPending } = usePolicies();
   const [filter, setFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
   const [statuses, setStatuses] = useState<Record<string, number>>({});
@@ -97,7 +97,7 @@ export default function PoliciesPage() {
           <>
           <div className="space-y-3">
             {pageIds.map((id) => (
-              <PolicyRow key={id.toString()} id={id} filter={filter} onDeactivate={deactivate} onCancel={cancel} isPending={isPending} owner={address} />
+              <PolicyRow key={id.toString()} id={id} filter={filter} onDeactivate={deactivate} onCancel={cancel} onSettle={settle} isPending={isPending} owner={address} />
             ))}
           </div>
           {ids.map((id) => (
@@ -149,9 +149,9 @@ function PolicyProbe({ id, onStatus }: { id: bigint; onStatus: (id: bigint, stat
   return null;
 }
 
-function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
+function PolicyRow({ id, filter, onDeactivate, onCancel, onSettle, isPending, owner }: {
   id: bigint; filter: string;
-  onDeactivate: (id: bigint) => void; onCancel: (id: bigint) => void;
+  onDeactivate: (id: bigint) => void; onCancel: (id: bigint) => void; onSettle: (id: bigint) => void;
   isPending: boolean; owner?: `0x${string}`;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -232,21 +232,31 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Created</span><span>{fmtTs(policy.createdAt)}</span></div>
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Expires</span><span>{fmtTs(policy.expiresAt)}</span></div>
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Executed</span><span>{fmtTs(policy.executedAt)}</span></div>
-            <div className="flex justify-between gap-4"><span className="text-foreground/50">Unichain attestation</span><span>{attested === true ? "Recorded (proof-of-trigger, no vault exit)" : "—"}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Unichain attestation</span><span>{attested === true ? "Recorded — use Settle to execute on Base" : "—"}</span></div>
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Policy hash</span><span>{policy.hash}</span></div>
           </div>
         )}
       </div>
-      {isOwner && (status === 1 || status === 0) && (
+      {status === 1 && (
         <div className="flex gap-2">
-          {status === 1 && (
+          <button
+            onClick={() => onSettle(id)}
+            disabled={isPending}
+            title="Settle on Base via SettlementRelay (re-validates trigger on-chain)"
+            className="rounded-lg border border-accent/50 px-3 py-1.5 text-xs text-accent hover:bg-accent/10 disabled:opacity-50"
+          >
+            Settle
+          </button>
+          {isOwner && (
             <button onClick={() => onDeactivate(id)} disabled={isPending} className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-card disabled:opacity-50">
               Deactivate
             </button>
           )}
-          <button onClick={() => onCancel(id)} disabled={isPending} className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs text-danger hover:bg-danger/10 disabled:opacity-50">
-            Cancel
-          </button>
+          {isOwner && (
+            <button onClick={() => onCancel(id)} disabled={isPending} className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs text-danger hover:bg-danger/10 disabled:opacity-50">
+              Cancel
+            </button>
+          )}
         </div>
       )}
     </Card>

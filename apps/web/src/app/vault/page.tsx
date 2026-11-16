@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
 import { useVault } from "@/hooks/useContracts";
@@ -13,6 +13,11 @@ export default function VaultPage() {
   const { isConnected } = useAccount();
   const { balance, totalDeposits, depositWithApproval, withdraw, flowStep, flowHash, flowReceipt, isPending, txHash, receipt, error, tokenAddr } = useVault();
   const [amount, setAmount] = useState("");
+
+  // Clear the amount input after a successful deposit or withdraw.
+  useEffect(() => {
+    if (flowReceipt.isSuccess || receipt.isSuccess) setAmount("");
+  }, [flowReceipt.isSuccess, receipt.isSuccess]);
 
   const configured = isConfigured("vault");
   const balLoading = balance.isLoading;

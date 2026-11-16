@@ -14,6 +14,7 @@ export const deployments: Record<string, DeploymentInfo> = {
   protectionManager: { address: process.env.NEXT_PUBLIC_MANAGER_ADDRESS ?? "", chainId: 84532 },
   priceFeed: { address: process.env.NEXT_PUBLIC_FEED_ADDRESS ?? "", chainId: 84532 },
   protectionExecutor: { address: process.env.NEXT_PUBLIC_BASE_EXECUTOR ?? "", chainId: 84532 },
+  settlementRelay: { address: process.env.NEXT_PUBLIC_SETTLEMENT_RELAY ?? "", chainId: 84532 },
   testToken: { address: process.env.NEXT_PUBLIC_TOKEN_ADDRESS ?? "", chainId: 84532 },
   // Unichain Sepolia (1301)
   crossChainExecutor: { address: process.env.NEXT_PUBLIC_UNI_EXECUTOR ?? "", chainId: 1301 },

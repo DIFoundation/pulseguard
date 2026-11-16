@@ -2,7 +2,7 @@
 
 import { useConnection, usePublicClient, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { baseSepolia, deployments, isConfigured } from "@pulseguard/config";
-import { PulseGuardVaultAbi, ProtectionManagerAbi, MockPriceFeedAbi } from "@pulseguard/abi";
+import { PulseGuardVaultAbi, ProtectionManagerAbi, MockPriceFeedAbi, SettlementRelayAbi } from "@pulseguard/abi";
 import { erc20Abi } from "viem";
 import { useState } from "react";
 
@@ -167,7 +167,19 @@ export function usePolicies() {
   const cancel = (id: bigint) =>
     writeContract({ abi: ProtectionManagerAbi, address: managerAddr, functionName: "cancelPolicy", args: [id], chainId: baseSepolia.id });
 
-  return { nextId, createPolicy, deactivate, cancel, isPending, txHash, receipt, error };
+  // Settle an attested/triggered policy on Base via the SettlementRelay
+  // (registered as executorForChain for attestation-only destinations like Unichain).
+  const relayAddr = deployments.settlementRelay.address as `0x${string}`;
+  const settle = (id: bigint) =>
+    writeContract({
+      abi: SettlementRelayAbi,
+      address: relayAddr,
+      functionName: "settle",
+      args: [id],
+      chainId: baseSepolia.id,
+    });
+
+  return { nextId, createPolicy, deactivate, cancel, settle, isPending, txHash, receipt, error };
 }
 
 export function usePriceFeed() {

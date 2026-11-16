@@ -5,8 +5,8 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
 import { usePolicies } from "@/hooks/useContracts";
-import { deployments, isConfigured, baseSepolia } from "@pulseguard/config";
-import { ProtectionManagerAbi } from "@pulseguard/abi";
+import { deployments, isConfigured, baseSepolia, unichainSepolia } from "@pulseguard/config";
+import { CrossChainExecutorAbi, ProtectionManagerAbi } from "@pulseguard/abi";
 import { useReadContract, useAccount } from "wagmi";
 import { formatPrice, formatTokenAmount, shortAddress } from "@/lib/format";
 import Link from "next/link";
@@ -164,6 +164,17 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
     query: { enabled: isConfigured("protectionManager"), refetchInterval: 8000 },
   });
 
+  // Unichain attestation probe — CrossChainExecutor.executedPolicies(policyId).
+  // Attestation proves the trigger fired cross-chain; it does not execute a vault exit.
+  const { data: attested } = useReadContract({
+    abi: CrossChainExecutorAbi,
+    address: isConfigured("crossChainExecutor") ? (deployments.crossChainExecutor.address as `0x${string}`) : undefined,
+    functionName: "executedPolicies",
+    args: [id],
+    chainId: unichainSepolia.id,
+    query: { enabled: isConfigured("crossChainExecutor"), refetchInterval: 10000 },
+  });
+
   interface Policy {
     id: bigint; owner: `0x${string}`; asset: `0x${string}`; monitoredAsset: `0x${string}`;
     destinationChainId: bigint; triggerType: number; threshold: bigint; referencePrice: bigint;
@@ -201,6 +212,7 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
           <span className="font-mono text-sm text-accent">#{id.toString()}</span>
           <Badge tone={STATUS_TONES[status] ?? "default"}>{STATUS_LABELS[status]}</Badge>
           <Badge tone="accent">{TRIGGER_LABELS[Number(policy.triggerType)]}</Badge>
+          {attested === true && <Badge tone="success">Attested on Unichain</Badge>}
           {expanded ? <ChevronUp className="ml-auto h-4 w-4 text-foreground/40" /> : <ChevronDown className="ml-auto h-4 w-4 text-foreground/40" />}
         </button>
         <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-foreground/50">
@@ -220,6 +232,7 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Created</span><span>{fmtTs(policy.createdAt)}</span></div>
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Expires</span><span>{fmtTs(policy.expiresAt)}</span></div>
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Executed</span><span>{fmtTs(policy.executedAt)}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Unichain attestation</span><span>{attested === true ? "Recorded (proof-of-trigger, no vault exit)" : "—"}</span></div>
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Policy hash</span><span>{policy.hash}</span></div>
           </div>
         )}

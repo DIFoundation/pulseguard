@@ -111,8 +111,8 @@ interface BlockscoutLogsPage {
 async function fetchAddressLogs(address: string, base: string): Promise<BlockscoutLog[]> {
   const all: BlockscoutLog[] = [];
   let url: string | null = `${base}/api/v2/addresses/${address}/logs`;
-  // cap pagination to avoid runaway requests
-  for (let page = 0; page < 10 && url; page++) {
+  // cap pagination — 4 pages (~200 logs) is plenty for the demo feed
+  for (let page = 0; page < 4 && url; page++) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Blockscout ${res.status} for ${address}`);
     const json = (await res.json()) as BlockscoutLogsPage;
@@ -196,7 +196,6 @@ export default function ActivityPage() {
               fromBlock: latest > 200_000n ? latest - 200_000n : 0n,
               toBlock: "latest",
             });
-            const tsCache = new Map<bigint, bigint>();
             for (const log of logs) {
               try {
                 const decoded = decodeEventLog({
@@ -207,15 +206,10 @@ export default function ActivityPage() {
                 const eventName: string = decoded.eventName ?? "Unknown";
                 if (eventName === "IrrelevantEvent") continue; // noise
                 const args = (decoded.args ?? {}) as unknown as Record<string, unknown>;
-                if (!tsCache.has(log.blockNumber)) {
-                  const b = await lasnaClient.getBlock({ blockNumber: log.blockNumber });
-                  tsCache.set(log.blockNumber, b.timestamp);
-                }
                 collected.push({
                   key: `Reactive Lasna-${log.transactionHash}-${log.logIndex}`,
                   txHash: log.transactionHash,
                   blockNumber: log.blockNumber,
-                  timestamp: tsCache.get(log.blockNumber),
                   chain: "Reactive Lasna",
                   explorer: LASNA_EXPLORER,
                   source: "Reactive Contract",
@@ -232,28 +226,51 @@ export default function ActivityPage() {
           }
         }
 
-        const clients: Record<string, typeof baseClient> = {
-          "Base Sepolia": baseClient,
-          "Unichain Sepolia": uniClient,
+        // Timestamps only for the most recent events per chain (the top-200 feed
+        // needs at most ~80/chain), fetched in parallel batches across all chains.
+        type BlockClient = { getBlock: (args: { blockNumber: bigint }) => Promise<{ timestamp: bigint }> };
+        const clients: Record<string, BlockClient> = {
+          "Base Sepolia": baseClient as unknown as BlockClient,
+          "Unichain Sepolia": uniClient as unknown as BlockClient,
+          "Reactive Lasna": lasnaClient as unknown as BlockClient,
         };
+        const RECENT_PER_CHAIN = 80;
         const byChain = new Map<string, ActivityEvent[]>();
         for (const e of collected) {
           const arr = byChain.get(e.chain) ?? [];
           arr.push(e);
           byChain.set(e.chain, arr);
         }
-        for (const [chain, evts] of byChain) {
-          const c = clients[chain];
-          if (!c) continue;
-          const blockNums = [...new Set(evts.map((e) => e.blockNumber))].slice(0, 30);
-          const tsMap = new Map<bigint, bigint>();
+        const candidates = new Set<ActivityEvent>();
+        for (const evts of byChain.values()) {
+          evts.sort((a, b) => Number(b.blockNumber - a.blockNumber));
+          for (const e of evts.slice(0, RECENT_PER_CHAIN)) candidates.add(e);
+        }
+        const tsByBlock = new Map<string, bigint>();
+        const jobs: { chain: string; bn: bigint }[] = [];
+        const seen = new Set<string>();
+        for (const e of candidates) {
+          const key = `${e.chain}:${e.blockNumber}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          jobs.push({ chain: e.chain, bn: e.blockNumber });
+        }
+        for (let i = 0; i < jobs.length; i += 20) {
           await Promise.all(
-            blockNums.map(async (bn) => {
-              const b = await c.getBlock({ blockNumber: bn });
-              tsMap.set(bn, b.timestamp);
+            jobs.slice(i, i + 20).map(async (j) => {
+              const c = clients[j.chain];
+              if (!c) return;
+              try {
+                const b = await c.getBlock({ blockNumber: j.bn });
+                tsByBlock.set(`${j.chain}:${j.bn}`, b.timestamp);
+              } catch {
+                // block fetch failed — event keeps undefined timestamp
+              }
             })
           );
-          for (const e of evts) e.timestamp = tsMap.get(e.blockNumber);
+        }
+        for (const e of candidates) {
+          e.timestamp = tsByBlock.get(`${e.chain}:${e.blockNumber}`);
         }
 
         // Correlate each execution event to its originating PriceUpdated:

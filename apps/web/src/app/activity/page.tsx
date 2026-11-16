@@ -134,6 +134,7 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [lasnaFailed, setLasnaFailed] = useState(false);
 
   const uniAddr = deployments.crossChainExecutor.address as `0x${string}`;
   const { data: recordCount } = useReadContract({
@@ -203,6 +204,7 @@ export default function ActivityPage() {
               ranges.map((r) => lasnaClient.getLogs({ address: reactiveAddr, ...r }))
             );
             const logs = chunks.flat();
+            setLasnaFailed(false);
             for (const log of logs) {
               try {
                 const decoded = decodeEventLog({
@@ -230,6 +232,7 @@ export default function ActivityPage() {
             }
           } catch (err) {
             console.warn("Lasna log fetch failed", err);
+            setLasnaFailed(true);
           }
         }
 
@@ -332,12 +335,14 @@ export default function ActivityPage() {
     };
 
     load();
-    const interval = setInterval(load, 20_000); // live refresh
+    const interval = setInterval(load, 30000); // live refresh
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
   }, [baseClient, uniClient]);
+
+  const countFor = (chain: string) => events.filter((e) => e.chain === chain).length;
 
   return (
     <div className="min-h-screen">
@@ -349,17 +354,23 @@ export default function ActivityPage() {
           <Card>
             <h3 className="font-semibold">Origin Chain — Base Sepolia</h3>
             <p className="mt-2 text-sm text-foreground/60">PriceUpdated events, policy creation, vault deposits/withdrawals.</p>
+            <p className="mt-2 text-sm">Events: <span className="font-semibold">{countFor("Base Sepolia")}</span></p>
             <a href="https://sepolia.basescan.org" target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm text-accent hover:underline">View explorer →</a>
           </Card>
           <Card>
             <h3 className="font-semibold">Reactive Network — Lasna</h3>
             <p className="mt-2 text-sm text-foreground/60">react() evaluations, callback requests, CallbackRequest events.</p>
+            <p className="mt-2 text-sm">Events: <span className="font-semibold">{countFor("Reactive Lasna")}</span></p>
+            {lasnaFailed && (
+              <p className="mt-2 text-xs text-warning">Reactive log fetch failed (RPC range limit) — will retry on next refresh.</p>
+            )}
             <a href="https://lasna.reactscan.net" target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm text-accent hover:underline">View explorer →</a>
           </Card>
           <Card>
             <h3 className="font-semibold">Destination — Unichain Sepolia</h3>
             <p className="mt-2 text-sm text-foreground/60">Cross-chain protection records.</p>
             <p className="mt-2 text-sm">Records: <span className="font-semibold">{recordCount?.toString() ?? "—"}</span></p>
+            <p className="mt-1 text-sm">Events: <span className="font-semibold">{countFor("Unichain Sepolia")}</span></p>
             <a href="https://sepolia.uniscan.xyz" target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm text-accent hover:underline">View explorer →</a>
           </Card>
         </div>
@@ -367,7 +378,7 @@ export default function ActivityPage() {
         <Card className="mt-6">
           <h3 className="font-semibold">Execution Timeline</h3>
           <p className="mt-2 text-sm text-foreground/60">
-            Live on-chain events across Base Sepolia and Unichain Sepolia.
+            Live on-chain events across Base Sepolia, Reactive Lasna, and Unichain Sepolia.
           </p>
           {loading ? (
             <div className="mt-4 space-y-3">

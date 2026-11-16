@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
 import { useVault } from "@/hooks/useContracts";
@@ -15,9 +15,13 @@ export default function VaultPage() {
   const [amount, setAmount] = useState("");
 
   // Clear the amount input after a successful deposit or withdraw.
-  useEffect(() => {
-    if (flowReceipt.isSuccess || receipt.isSuccess) setAmount("");
-  }, [flowReceipt.isSuccess, receipt.isSuccess]);
+  // (Render-time state adjustment — avoids setState-in-effect.)
+  const succeeded = flowReceipt.isSuccess || receipt.isSuccess;
+  const [wasSucceeded, setWasSucceeded] = useState(false);
+  if (succeeded !== wasSucceeded) {
+    setWasSucceeded(succeeded);
+    if (succeeded) setAmount("");
+  }
 
   const configured = isConfigured("vault");
   const balLoading = balance.isLoading;

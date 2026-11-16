@@ -37,20 +37,6 @@ function CreatePolicyForm() {
     return v >= 0 && v <= 3 ? v : 0;
   })();
 
-  useEffect(() => {
-    if (!receipt.isSuccess) return;
-    // Reset all form state before leaving — coming back starts clean.
-    setThreshold("");
-    setReferencePrice("");
-    setMaxDrawdownPct("5");
-    setAmount("");
-    setDestChain(84532);
-    setExpiresInDays("");
-    setTriggerType(initialTrigger);
-    router.push("/policies");
-  }, [receipt.isSuccess, router, initialTrigger]);
-  const templateName = searchParams.get("template");
-
   const [triggerType, setTriggerType] = useState(initialTrigger);
   const [threshold, setThreshold] = useState("");
   const [referencePrice, setReferencePrice] = useState("");
@@ -58,6 +44,25 @@ function CreatePolicyForm() {
   const [amount, setAmount] = useState("");
   const [destChain, setDestChain] = useState<84532 | 1301>(84532);
   const [expiresInDays, setExpiresInDays] = useState("");
+
+  // Reset form state on success (render-time adjustment), then navigate away.
+  const succeeded = receipt.isSuccess;
+  const [wasSucceeded, setWasSucceeded] = useState(false);
+  if (succeeded && !wasSucceeded) {
+    setWasSucceeded(true);
+    setThreshold("");
+    setReferencePrice("");
+    setMaxDrawdownPct("5");
+    setAmount("");
+    setDestChain(84532);
+    setExpiresInDays("");
+    setTriggerType(initialTrigger);
+  }
+
+  useEffect(() => {
+    if (receipt.isSuccess) router.push("/policies");
+  }, [receipt.isSuccess, router]);
+  const templateName = searchParams.get("template");
 
   const feedAsset = deployments.testToken.address as `0x${string}`;
   const asset = deployments.testToken.address as `0x${string}`;

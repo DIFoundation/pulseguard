@@ -153,35 +153,37 @@ export default function ActivityPage() {
       try {
         const collected: ActivityEvent[] = [];
 
-        for (const src of SOURCES) {
-          const info = deployments[src.envKey];
-          if (!info.address) continue;
-          const logs = await fetchAddressLogs(info.address, src.blockscout);
-          for (const log of logs) {
-            try {
-              const decoded = decodeEventLog({
-                abi: src.abi,
-                data: log.data as `0x${string}`,
-                topics: log.topics as [`0x${string}`, ...`0x${string}`[]],
-              });
-              const eventName = decoded.eventName ?? "Unknown";
-              const args = (decoded.args ?? {}) as unknown as Record<string, unknown>;
-              collected.push({
-                key: `${src.chain}-${log.transaction_hash}-${log.index ?? log.log_index ?? 0}`,
-                txHash: log.transaction_hash as Hash,
-                blockNumber: BigInt(log.block_number),
-                chain: src.chain,
-                explorer: src.explorer,
-                source: src.label,
-                eventName,
-                summary: summarize(eventName, args),
-                policyId: args.policyId !== undefined ? String(args.policyId) : args.id !== undefined ? String(args.id) : undefined,
-              });
-            } catch {
-              // log from an event not in this ABI — skip
+        await Promise.all(
+          SOURCES.map(async (src) => {
+            const info = deployments[src.envKey];
+            if (!info.address) return;
+            const logs = await fetchAddressLogs(info.address, src.blockscout);
+            for (const log of logs) {
+              try {
+                const decoded = decodeEventLog({
+                  abi: src.abi,
+                  data: log.data as `0x${string}`,
+                  topics: log.topics as [`0x${string}`, ...`0x${string}`[]],
+                });
+                const eventName = decoded.eventName ?? "Unknown";
+                const args = (decoded.args ?? {}) as unknown as Record<string, unknown>;
+                collected.push({
+                  key: `${src.chain}-${log.transaction_hash}-${log.index ?? log.log_index ?? 0}`,
+                  txHash: log.transaction_hash as Hash,
+                  blockNumber: BigInt(log.block_number),
+                  chain: src.chain,
+                  explorer: src.explorer,
+                  source: src.label,
+                  eventName,
+                  summary: summarize(eventName, args),
+                  policyId: args.policyId !== undefined ? String(args.policyId) : args.id !== undefined ? String(args.id) : undefined,
+                });
+              } catch {
+                // log from an event not in this ABI — skip
+              }
             }
-          }
-        }
+          })
+        );
 
         // Reactive Lasna: no Blockscout API — fetch logs directly via RPC.
         const reactiveAddr = deployments.reactive.address as `0x${string}`;

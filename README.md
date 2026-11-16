@@ -65,7 +65,7 @@ pnpm --filter web dev
 - ✅ Deployed on Base Sepolia, Unichain Sepolia, and Reactive Lasna (2026-11-14) — see `deployments/*.json`
 - ✅ Next.js frontend: landing, dashboard, vault, policies, marketplace, simulator, activity (multi-chain, paginated, latency badges), settings
 - ✅ Production build passes (`pnpm --filter web build`)
-- ⏳ Full demo flow rehearsal in progress — see `docs/DEMO_SCRIPT.md`
+- ✅ Full demo flow rehearsed end-to-end (Base + Unichain destinations, ~2s latency) — evidence in `docs/DEMO_SCRIPT.md`
 
 ## Disclaimer
 

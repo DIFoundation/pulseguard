@@ -168,7 +168,7 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
     id: bigint; owner: `0x${string}`; asset: `0x${string}`; monitoredAsset: `0x${string}`;
     destinationChainId: bigint; triggerType: number; threshold: bigint; referencePrice: bigint;
     maxDrawdownBps: bigint; protectedAmount: bigint; recipient: `0x${string}`; action: number;
-    status: number; createdAt: bigint; expiresAt: bigint; executedAt: bigint;
+    status: number; createdAt: bigint; expiresAt: bigint; executedAt: bigint; hash: `0x${string}`;
   }
   const policy = policyRaw as Policy | undefined;
   if (isLoading) {
@@ -220,6 +220,7 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, isPending, owner }: {
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Created</span><span>{fmtTs(policy.createdAt)}</span></div>
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Expires</span><span>{fmtTs(policy.expiresAt)}</span></div>
             <div className="flex justify-between gap-4"><span className="text-foreground/50">Executed</span><span>{fmtTs(policy.executedAt)}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-foreground/50">Policy hash</span><span>{policy.hash}</span></div>
           </div>
         )}
       </div>

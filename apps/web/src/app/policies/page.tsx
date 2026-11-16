@@ -239,14 +239,16 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, onSettle, isPending, ow
       </div>
       {status === 1 && (
         <div className="flex gap-2">
-          <button
-            onClick={() => onSettle(id)}
-            disabled={isPending}
-            title="Settle on Base via SettlementRelay (re-validates trigger on-chain)"
-            className="rounded-lg border border-accent/50 px-3 py-1.5 text-xs text-accent hover:bg-accent/10 disabled:opacity-50"
-          >
-            Settle
-          </button>
+          {isOwner && (
+            <button
+              onClick={() => onSettle(id)}
+              disabled={isPending}
+              title="Settle on Base via SettlementRelay (re-validates trigger on-chain)"
+              className="rounded-lg border border-accent/50 px-3 py-1.5 text-xs text-accent hover:bg-accent/10 disabled:opacity-50"
+            >
+              Settle
+            </button>
+          )}
           {isOwner && (
             <button onClick={() => onDeactivate(id)} disabled={isPending} className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-card disabled:opacity-50">
               Deactivate

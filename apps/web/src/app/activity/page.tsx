@@ -189,13 +189,20 @@ export default function ActivityPage() {
         const reactiveAddr = deployments.reactive.address as `0x${string}`;
         if (isConfigured("reactive") && reactiveAddr) {
           try {
-            // Bound the range — Lasna RPC rejects/times out on fromBlock 0.
+            // Lasna RPC chokes on huge ranges — chunk into 10k-block windows,
+            // fetched in parallel. 50k blocks covers ~14-28h of history.
             const latest = await lasnaClient.getBlockNumber();
-            const logs = await lasnaClient.getLogs({
-              address: reactiveAddr,
-              fromBlock: latest > 200_000n ? latest - 200_000n : 0n,
-              toBlock: "latest",
-            });
+            const from = latest > 50_000n ? latest - 50_000n : 0n;
+            const CHUNK = 10_000n;
+            const ranges: { fromBlock: bigint; toBlock: bigint }[] = [];
+            for (let f = from; f <= latest; f += CHUNK) {
+              const t = f + CHUNK - 1n > latest ? latest : f + CHUNK - 1n;
+              ranges.push({ fromBlock: f, toBlock: t });
+            }
+            const chunks = await Promise.all(
+              ranges.map((r) => lasnaClient.getLogs({ address: reactiveAddr, ...r }))
+            );
+            const logs = chunks.flat();
             for (const log of logs) {
               try {
                 const decoded = decodeEventLog({

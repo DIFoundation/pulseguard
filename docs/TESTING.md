@@ -29,7 +29,7 @@ pnpm --filter web build       # next build (all routes prerender)
 
 ## End-to-end (testnet)
 
-See `docs/DEMO_SCRIPT.md`. Contracts are deployed on all three chains (see `deployments/*.json`); the activity page reads live events from Base Sepolia and Unichain Sepolia via Blockscout.
+See `docs/DEMO_SCRIPT.md`. Contracts are deployed on all three chains (see `deployments/*.json`); the activity page reads live events from all chains via `eth_getLogs` over RPC through `/api/logs`.
 
 ## Fresh-wallet UX validation (manual)
 

@@ -219,8 +219,8 @@ export default function ActivityPage() {
           })
         );
 
-        // Reactive Lasna: no Blockscout API — fetch via the unified server-side
-        // proxy (browser RPC getLogs was unreliable: CORS/rate-limit on ranges).
+        // Reactive Lasna: fetched via the unified server-side proxy — browser
+        // RPC getLogs was unreliable (CORS/rate-limit on ranges).
         const reactiveAddr = deployments.reactive.address as `0x${string}`;
         if (isConfigured("reactive") && reactiveAddr) {
           try {

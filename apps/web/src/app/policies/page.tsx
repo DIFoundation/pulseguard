@@ -26,6 +26,7 @@ export default function PoliciesPage() {
   const [filter, setFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
   const [statuses, setStatuses] = useState<Record<string, number>>({});
+  const [attested, setAttested] = useState<Record<string, boolean>>({});
 
   const count = nextId.data ? Number(nextId.data) : 0;
   // Newest first — policy ids are sequential, so iterate descending.
@@ -40,11 +41,13 @@ export default function PoliciesPage() {
 
   const matchesFilter = (id: bigint) => {
     if (filter === "all") return true;
+    if (filter === "attested") return attested[id.toString()] === true;
     const s = statuses[id.toString()];
     if (s === undefined) return false;
     if (filter === "active") return s === 1;
     if (filter === "executed") return s === 3;
     if (filter === "cancelled") return s === 4;
+    if (filter === "expired") return s === 5;
     return true;
   };
 
@@ -74,7 +77,7 @@ export default function PoliciesPage() {
         )}
 
         <div className="mb-4 flex gap-2">
-          {["all", "active", "executed", "cancelled"].map((f) => (
+          {["all", "active", "deactivated", "attested", "executed", "cancelled"].map((f) => (
             <button
               key={f}
               onClick={() => { setFilter(f); setPage(0); }}
@@ -147,6 +150,21 @@ function PolicyProbe({ id, onStatus }: { id: bigint; onStatus: (id: bigint, stat
     const raw = data as { status?: number } | undefined;
     if (raw && typeof raw.status === "number") onStatus(id, raw.status);
   }, [data, id, onStatus]);
+  return null;
+}
+
+function AttestationProbe({ id, onAttested }: { id: bigint; onAttested: (id: bigint, value: boolean) => void }) {
+  const { data } = useReadContract({
+    abi: CrossChainExecutorAbi,
+    address: isConfigured("crossChainExecutor") ? (deployments.crossChainExecutor.address as `0x${string}`) : undefined,
+    functionName: "executedPolicies",
+    args: [id],
+    chainId: unichainSepolia.id,
+    query: { enabled: isConfigured("crossChainExecutor"), refetchInterval: 10000 },
+  });
+  useEffect(() => {
+    if (typeof data === "boolean") onAttested(id, data);
+  }, [data, id, onAttested]);
   return null;
 }
 
@@ -240,7 +258,7 @@ function PolicyRow({ id, filter, onDeactivate, onCancel, onSettle, isPending, ow
       </div>
       {status === 1 && (
         <div className="flex gap-2">
-          {isOwner && isConfigured("settlementRelay") && (
+          {isOwner && isConfigured("settlementRelay") && policy.destinationChainId === 1301n && (
             <button
               onClick={() => onSettle(id)}
               disabled={isPending}

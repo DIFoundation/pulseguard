@@ -61,3 +61,34 @@ Two full end-to-end runs executed through the frontend UI. Timestamps are block 
 **Latency: ~2s** from triggering `PriceUpdated` (07:12:13) to on-chain attestation (07:12:15).
 
 > **Attestation semantics (honest labeling):** the Unichain leg records a *verifiable attestation* that the trigger fired — it does **not** execute a vault exit. Vault exits only happen for policies whose destination is Base Sepolia (Run 1). Policy #2 therefore remains `ACTIVE` on `ProtectionManager` until expiry/cancel; the attestation is proof-of-trigger, not proof-of-execution.
+
+## Evidence — live runs (2026-11-17, post-remediation redeploy)
+
+Contracts redeployed after remediation: `PulseGuardReactive` `0xdE25…0C7b` (Lasna, funded at deploy), `ProtectionExecutor` `0x35Ad…bDC8` (Base), `CrossChainExecutor` `0xD931…F4B0` (Unichain). Both destination paths verified end-to-end via `cast`.
+
+### Run 3 — Base Sepolia destination (policy #3, STOP_LOSS, threshold $1,800)
+
+| Step | Chain | Tx | Block | Time (UTC) |
+|---|---|---|---|---|
+| Policy created + mirror sync | Base Sepolia | [`0x7f4d82c4…c646b`](https://sepolia.basescan.org/tx/0x7f4d82c4eea1873830db63b4d83d6d8e640861f9eebb2fd4e2968edd605c646b) | — | — |
+| Policy mirrored on Lasna | Reactive Lasna | (delivered via subscription) | — | — |
+| Price published $1,730 — **trigger** | Base Sepolia | [`0x46fba7cb…f71153`](https://sepolia.basescan.org/tx/0x46fba7cb852256fd0b69a339c0a2b7e9bc653429a109d3a6d618855622f71153) | 60094042 | — |
+| `TriggerEvaluated` + `CallbackRequested` | Reactive Lasna | [`0xa686ea30…812e4`](https://lasna.reactscan.net/tx/0xa686ea306d9a2789d244b6ffa718c16d6f2dda501e50e7cac60650a0278812e4) | — | — |
+| `ProtectionExecuted` + vault `ProtectedExit` (5 tokens) | Base Sepolia | [`0xd0e53d73…22052`](https://sepolia.basescan.org/tx/0xd0e53d73c5d4198d8b11baae6d487c64bb4063705bec2c1174339a5facc22052) | ~60094250 | — |
+
+Policy #3 final state: `EXECUTED`. Vault exit verified on-chain: deployer balance 905 → vault 95 → after exit deployer 910 / vault 90 (policy #4 also settled, see Run 4).
+
+### Run 4 — Unichain Sepolia destination + relay settlement (policy #4, STOP_LOSS, threshold $1,800)
+
+| Step | Chain | Tx | Block | Time (UTC) |
+|---|---|---|---|---|
+| Policy created (`destinationChainId=1301`) + mirror sync | Base Sepolia | [`0x6a7c9766…fb10e2`](https://sepolia.basescan.org/tx/0x6a7c97664b9a7e7f9a5685ed4f960582ed8d9bda77c16889f1fe0aca25fb10e2) | — | — |
+| Policy mirrored on Lasna | Reactive Lasna | (delivered via subscription) | — | — |
+| Price published $1,720 — **trigger** | Base Sepolia | [`0xe1864fbc…099fac`](https://sepolia.basescan.org/tx/0xe1864fbcec732d2de4de7b3bfa6c7a4fdd7fddde0617ccbe1521afa6f2099fac) | 60114458 | — |
+| `TriggerEvaluated` + `CallbackRequested` (dest 1301) | Reactive Lasna | [`0x4185bc47…88c003`](https://lasna.reactscan.net/tx/0x4185bc47716e4970216483ad1bc190f1a6b3daf82edc225e76522fcd0888c003) | — | — |
+| `CrossChainProtectionRecorded` — attestation `0x4500…6551`, `verifyAttestation → true` | Unichain Sepolia | [`0x884627e9…057c5f`](https://sepolia.uniscan.xyz/tx/0x884627e95070fba13bcde29f7ef9935697c9ed780a10b7772060ab65db057c5f) | 68093548+ | — |
+| `SettlementRelay.settle(4)` → `executePolicy` → `EXECUTED` + vault exit (5 tokens) | Base Sepolia | [`0xfdb1d5f2…cf0f7c`](https://sepolia.basescan.org/tx/0xfdb1d5f28525625a2710787832fe888b875dd348162a7358444dabadf5cf0f7c) | — | — |
+
+**Unichain flow:** attestation on Unichain proves the trigger fired; settlement is a separate permissionless `SettlementRelay.settle(policyId)` call on Base that re-validates status/expiry/price/trigger on-chain before executing the vault exit. Policy #4 final state: `EXECUTED`.
+
+> **Deployment note:** `PulseGuardReactive` must hold a REACT balance at deploy time — constructor `SYSTEM.subscribe` calls do not register for unfunded contracts. `DeployReactive.s.sol` now funds via `REACTIVE_FUNDING` (default 0.3 REACT). Executors bind `_CALLBACK_SENDER` immutably, so redeploying the reactive contract requires redeploying both executors.

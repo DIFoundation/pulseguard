@@ -1,0 +1,1890 @@
+{
+	"id": "964f92d5262f0394cfaed298c0c021be",
+	"_format": "hh-sol-build-info-1",
+	"solcVersion": "0.8.29",
+	"solcLongVersion": "0.8.29+commit.ab55807c",
+	"input": {
+		"compiler": {
+			"version": "0.8.29+commit.ab55807c"
+		},
+		"language": "Solidity",
+		"output": {
+			"abi": [
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "asset_",
+							"type": "address"
+						},
+						{
+							"internalType": "address",
+							"name": "owner_",
+							"type": "address"
+						}
+					],
+					"stateMutability": "nonpayable",
+					"type": "constructor"
+				},
+				{
+					"inputs": [],
+					"type": "error",
+					"name": "EnforcedPause"
+				},
+				{
+					"inputs": [],
+					"type": "error",
+					"name": "ExpectedPause"
+				},
+				{
+					"inputs": [],
+					"type": "error",
+					"name": "InsufficientBalance"
+				},
+				{
+					"inputs": [],
+					"type": "error",
+					"name": "NotExecutor"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "owner",
+							"type": "address"
+						}
+					],
+					"type": "error",
+					"name": "OwnableInvalidOwner"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "account",
+							"type": "address"
+						}
+					],
+					"type": "error",
+					"name": "OwnableUnauthorizedAccount"
+				},
+				{
+					"inputs": [],
+					"type": "error",
+					"name": "ReentrancyGuardReentrantCall"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "token",
+							"type": "address"
+						}
+					],
+					"type": "error",
+					"name": "SafeERC20FailedOperation"
+				},
+				{
+					"inputs": [],
+					"type": "error",
+					"name": "ZeroAddress"
+				},
+				{
+					"inputs": [],
+					"type": "error",
+					"name": "ZeroAmount"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "user",
+							"type": "address",
+							"indexed": true
+						},
+						{
+							"internalType": "uint256",
+							"name": "amount",
+							"type": "uint256",
+							"indexed": false
+						}
+					],
+					"type": "event",
+					"name": "Deposited",
+					"anonymous": false
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "executor",
+							"type": "address",
+							"indexed": true
+						}
+					],
+					"type": "event",
+					"name": "ExecutorUpdated",
+					"anonymous": false
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "previousOwner",
+							"type": "address",
+							"indexed": true
+						},
+						{
+							"internalType": "address",
+							"name": "newOwner",
+							"type": "address",
+							"indexed": true
+						}
+					],
+					"type": "event",
+					"name": "OwnershipTransferred",
+					"anonymous": false
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "account",
+							"type": "address",
+							"indexed": false
+						}
+					],
+					"type": "event",
+					"name": "Paused",
+					"anonymous": false
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "user",
+							"type": "address",
+							"indexed": true
+						},
+						{
+							"internalType": "address",
+							"name": "recipient",
+							"type": "address",
+							"indexed": true
+						},
+						{
+							"internalType": "uint256",
+							"name": "amount",
+							"type": "uint256",
+							"indexed": false
+						}
+					],
+					"type": "event",
+					"name": "ProtectedExit",
+					"anonymous": false
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "user",
+							"type": "address",
+							"indexed": true
+						},
+						{
+							"internalType": "uint256",
+							"name": "amount",
+							"type": "uint256",
+							"indexed": false
+						}
+					],
+					"type": "event",
+					"name": "ReservationReleased",
+					"anonymous": false
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "user",
+							"type": "address",
+							"indexed": true
+						},
+						{
+							"internalType": "uint256",
+							"name": "amount",
+							"type": "uint256",
+							"indexed": false
+						}
+					],
+					"type": "event",
+					"name": "Reserved",
+					"anonymous": false
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "account",
+							"type": "address",
+							"indexed": false
+						}
+					],
+					"type": "event",
+					"name": "Unpaused",
+					"anonymous": false
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "user",
+							"type": "address",
+							"indexed": true
+						},
+						{
+							"internalType": "uint256",
+							"name": "amount",
+							"type": "uint256",
+							"indexed": false
+						}
+					],
+					"type": "event",
+					"name": "Withdrawn",
+					"anonymous": false
+				},
+				{
+					"inputs": [],
+					"stateMutability": "view",
+					"type": "function",
+					"name": "asset",
+					"outputs": [
+						{
+							"internalType": "contract IERC20",
+							"name": "",
+							"type": "address"
+						}
+					]
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "user",
+							"type": "address"
+						}
+					],
+					"stateMutability": "view",
+					"type": "function",
+					"name": "availableBalance",
+					"outputs": [
+						{
+							"internalType": "uint256",
+							"name": "",
+							"type": "uint256"
+						}
+					]
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "",
+							"type": "address"
+						}
+					],
+					"stateMutability": "view",
+					"type": "function",
+					"name": "balances",
+					"outputs": [
+						{
+							"internalType": "uint256",
+							"name": "",
+							"type": "uint256"
+						}
+					]
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "uint256",
+							"name": "amount",
+							"type": "uint256"
+						}
+					],
+					"stateMutability": "nonpayable",
+					"type": "function",
+					"name": "deposit"
+				},
+				{
+					"inputs": [],
+					"stateMutability": "view",
+					"type": "function",
+					"name": "executor",
+					"outputs": [
+						{
+							"internalType": "address",
+							"name": "",
+							"type": "address"
+						}
+					]
+				},
+				{
+					"inputs": [],
+					"stateMutability": "view",
+					"type": "function",
+					"name": "owner",
+					"outputs": [
+						{
+							"internalType": "address",
+							"name": "",
+							"type": "address"
+						}
+					]
+				},
+				{
+					"inputs": [],
+					"stateMutability": "nonpayable",
+					"type": "function",
+					"name": "pause"
+				},
+				{
+					"inputs": [],
+					"stateMutability": "view",
+					"type": "function",
+					"name": "paused",
+					"outputs": [
+						{
+							"internalType": "bool",
+							"name": "",
+							"type": "bool"
+						}
+					]
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "user",
+							"type": "address"
+						},
+						{
+							"internalType": "address",
+							"name": "recipient",
+							"type": "address"
+						},
+						{
+							"internalType": "uint256",
+							"name": "amount",
+							"type": "uint256"
+						}
+					],
+					"stateMutability": "nonpayable",
+					"type": "function",
+					"name": "protectedExit"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "user",
+							"type": "address"
+						},
+						{
+							"internalType": "uint256",
+							"name": "amount",
+							"type": "uint256"
+						}
+					],
+					"stateMutability": "nonpayable",
+					"type": "function",
+					"name": "release"
+				},
+				{
+					"inputs": [],
+					"stateMutability": "nonpayable",
+					"type": "function",
+					"name": "renounceOwnership"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "user",
+							"type": "address"
+						},
+						{
+							"internalType": "uint256",
+							"name": "amount",
+							"type": "uint256"
+						}
+					],
+					"stateMutability": "nonpayable",
+					"type": "function",
+					"name": "reserve"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "",
+							"type": "address"
+						}
+					],
+					"stateMutability": "view",
+					"type": "function",
+					"name": "reservedBalances",
+					"outputs": [
+						{
+							"internalType": "uint256",
+							"name": "",
+							"type": "uint256"
+						}
+					]
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "executor_",
+							"type": "address"
+						}
+					],
+					"stateMutability": "nonpayable",
+					"type": "function",
+					"name": "setExecutor"
+				},
+				{
+					"inputs": [],
+					"stateMutability": "view",
+					"type": "function",
+					"name": "totalDeposits",
+					"outputs": [
+						{
+							"internalType": "uint256",
+							"name": "",
+							"type": "uint256"
+						}
+					]
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "address",
+							"name": "newOwner",
+							"type": "address"
+						}
+					],
+					"stateMutability": "nonpayable",
+					"type": "function",
+					"name": "transferOwnership"
+				},
+				{
+					"inputs": [],
+					"stateMutability": "nonpayable",
+					"type": "function",
+					"name": "unpause"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "uint256",
+							"name": "amount",
+							"type": "uint256"
+						}
+					],
+					"stateMutability": "nonpayable",
+					"type": "function",
+					"name": "withdraw"
+				}
+			],
+			"devdoc": {
+				"kind": "dev",
+				"methods": {
+					"owner()": {
+						"details": "Returns the address of the current owner."
+					},
+					"paused()": {
+						"details": "Returns true if the contract is paused, and false otherwise."
+					},
+					"protectedExit(address,address,uint256)": {
+						"details": "Called by ProtectionExecutor after policy validation. Funds never go to executor."
+					},
+					"renounceOwnership()": {
+						"details": "Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner."
+					},
+					"reserve(address,uint256)": {
+						"details": "Only callable by the executor (ProtectionManager). Reverts if the      reservation would exceed the user's deposited balance."
+					},
+					"transferOwnership(address)": {
+						"details": "Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner."
+					}
+				},
+				"version": 1
+			},
+			"userdoc": {
+				"kind": "user",
+				"methods": {
+					"availableBalance(address)": {
+						"notice": "Balance not committed to any active protection policy."
+					},
+					"executor()": {
+						"notice": "Address allowed to trigger protected exits (ProtectionExecutor)."
+					},
+					"protectedExit(address,address,uint256)": {
+						"notice": "Executor-only: move `amount` of `user`'s protected balance to `recipient`."
+					},
+					"release(address,uint256)": {
+						"notice": "Release a previously reserved amount (policy cancelled/expired/executed)."
+					},
+					"reserve(address,uint256)": {
+						"notice": "Reserve `amount` of `user`'s balance for a protection policy."
+					},
+					"reservedBalances(address)": {
+						"notice": "Amount of each user's balance reserved by active protection policies."
+					}
+				},
+				"version": 1
+			}
+		},
+		"settings": {
+			"remappings": [
+				"@openzeppelin/=lib/openzeppelin-contracts/",
+				"@reactive/=lib/reactive-lib-omni/",
+				"erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/",
+				"forge-std/=lib/forge-std/src/",
+				"halmos-cheatcodes/=lib/openzeppelin-contracts/lib/halmos-cheatcodes/src/",
+				"openzeppelin-contracts/=lib/openzeppelin-contracts/",
+				"reactive-lib-omni/=lib/reactive-lib-omni/src/"
+			],
+			"optimizer": {
+				"enabled": true,
+				"runs": 200
+			},
+			"metadata": {
+				"bytecodeHash": "ipfs"
+			},
+			"compilationTarget": {
+				"src/vault/PulseGuardVault.sol": "PulseGuardVault"
+			},
+			"evmVersion": "cancun",
+			"libraries": {},
+			"viaIR": true
+		},
+		"sources": {
+			"lib/openzeppelin-contracts/contracts/access/Ownable.sol": {
+				"keccak256": "0xff6d0bb2e285473e5311d9d3caacb525ae3538a80758c10649a4d61029b017bb",
+				"urls": [
+					"bzz-raw://8ed324d3920bb545059d66ab97d43e43ee85fd3bd52e03e401f020afb0b120f6",
+					"dweb:/ipfs/QmfEckWLmZkDDcoWrkEvMWhms66xwTLff9DDhegYpvHo1a"
+				],
+				"license": "MIT"
+			},
+			"lib/openzeppelin-contracts/contracts/interfaces/IERC1363.sol": {
+				"keccak256": "0xd5ea07362ab630a6a3dee4285a74cf2377044ca2e4be472755ad64d7c5d4b69d",
+				"urls": [
+					"bzz-raw://da5e832b40fc5c3145d3781e2e5fa60ac2052c9d08af7e300dc8ab80c4343100",
+					"dweb:/ipfs/QmTzf7N5ZUdh5raqtzbM11yexiUoLC9z3Ws632MCuycq1d"
+				],
+				"license": "MIT"
+			},
+			"lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol": {
+				"keccak256": "0x0afcb7e740d1537b252cb2676f600465ce6938398569f09ba1b9ca240dde2dfc",
+				"urls": [
+					"bzz-raw://1c299900ac4ec268d4570ecef0d697a3013cd11a6eb74e295ee3fbc945056037",
+					"dweb:/ipfs/Qmab9owJoxcA7vJT5XNayCMaUR1qxqj1NDzzisduwaJMcZ"
+				],
+				"license": "MIT"
+			},
+			"lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol": {
+				"keccak256": "0x1a6221315ce0307746c2c4827c125d821ee796c74a676787762f4778671d4f44",
+				"urls": [
+					"bzz-raw://1bb2332a7ee26dd0b0de9b7fe266749f54820c99ab6a3bcb6f7e6b751d47ee2d",
+					"dweb:/ipfs/QmcRWpaBeCYkhy68PR3B4AgD7asuQk7PwkWxrvJbZcikLF"
+				],
+				"license": "MIT"
+			},
+			"lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol": {
+				"keccak256": "0x74ed01eb66b923d0d0cfe3be84604ac04b76482a55f9dd655e1ef4d367f95bc2",
+				"urls": [
+					"bzz-raw://5282825a626cfe924e504274b864a652b0023591fa66f06a067b25b51ba9b303",
+					"dweb:/ipfs/QmeCfPykghhMc81VJTrHTC7sF6CRvaA1FXVq2pJhwYp1dV"
+				],
+				"license": "MIT"
+			},
+			"lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol": {
+				"keccak256": "0x982c5cb790ab941d1e04f807120a71709d4c313ba0bfc16006447ffbd27fbbd5",
+				"urls": [
+					"bzz-raw://8150ceb4ac947e8a442b2a9c017e01e880b2be2dd958f1fa9bc405f4c5a86508",
+					"dweb:/ipfs/QmbcBmFX66AY6Kbhnd5gx7zpkgqnUafo43XnmayAM7zVdB"
+				],
+				"license": "MIT"
+			},
+			"lib/openzeppelin-contracts/contracts/utils/Context.sol": {
+				"keccak256": "0x493033a8d1b176a037b2cc6a04dad01a5c157722049bbecf632ca876224dd4b2",
+				"urls": [
+					"bzz-raw://6a708e8a5bdb1011c2c381c9a5cfd8a9a956d7d0a9dc1bd8bcdaf52f76ef2f12",
+					"dweb:/ipfs/Qmax9WHBnVsZP46ZxEMNRQpLQnrdE4dK8LehML1Py8FowF"
+				],
+				"license": "MIT"
+			},
+			"lib/openzeppelin-contracts/contracts/utils/Pausable.sol": {
+				"keccak256": "0xdb484371dfbb848cb6f5d70464e9ac9b2900e4164ead76bbce4fef0b44bcc68f",
+				"urls": [
+					"bzz-raw://f9d6f6f6600a2bec622f699081b58350873b5e63ce05464d17d674a290bb8a7c",
+					"dweb:/ipfs/QmQKVzSQY1PM3Bid4QhgVVZyx6B4Jx7XgaQzLKHj38vJz8"
+				],
+				"license": "MIT"
+			},
+			"lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol": {
+				"keccak256": "0x11a5a79827df29e915a12740caf62fe21ebe27c08c9ae3e09abe9ee3ba3866d3",
+				"urls": [
+					"bzz-raw://3cf0c69ab827e3251db9ee6a50647d62c90ba580a4d7bbff21f2bea39e7b2f4a",
+					"dweb:/ipfs/QmZiKwtKU1SBX4RGfQtY7PZfiapbbu6SZ9vizGQD9UHjRA"
+				],
+				"license": "MIT"
+			},
+			"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol": {
+				"keccak256": "0x8891738ffe910f0cf2da09566928589bf5d63f4524dd734fd9cedbac3274dd5c",
+				"urls": [
+					"bzz-raw://971f954442df5c2ef5b5ebf1eb245d7105d9fbacc7386ee5c796df1d45b21617",
+					"dweb:/ipfs/QmadRjHbkicwqwwh61raUEapaVEtaLMcYbQZWs9gUkgj3u"
+				],
+				"license": "MIT"
+			},
+			"src/vault/PulseGuardVault.sol": {
+				"keccak256": "0x2dfb87cb7a46deee15dbc4ba8ccc78588d7dff74991221aca54bcbd94aa2df3c",
+				"urls": [
+					"bzz-raw://8bc01dc55697ace83e5faf4cf955a1c4a9ac5f127cd14ab17fd481fd8acce8cc",
+					"dweb:/ipfs/QmTUiki7cSKUEMHnb8WGg7yvxprzmF5reSQQ8PBzzymdFp"
+				],
+				"license": "MIT"
+			}
+		},
+		"version": 1
+	},
+	"output": {
+		"contracts": {
+			"src/vault/PulseGuardVault.sol": {
+				"PulseGuardVault": {
+					"abi": [
+						{
+							"type": "constructor",
+							"inputs": [
+								{
+									"name": "asset_",
+									"type": "address",
+									"internalType": "address"
+								},
+								{
+									"name": "owner_",
+									"type": "address",
+									"internalType": "address"
+								}
+							],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "function",
+							"name": "asset",
+							"inputs": [],
+							"outputs": [
+								{
+									"name": "",
+									"type": "address",
+									"internalType": "contract IERC20"
+								}
+							],
+							"stateMutability": "view"
+						},
+						{
+							"type": "function",
+							"name": "availableBalance",
+							"inputs": [
+								{
+									"name": "user",
+									"type": "address",
+									"internalType": "address"
+								}
+							],
+							"outputs": [
+								{
+									"name": "",
+									"type": "uint256",
+									"internalType": "uint256"
+								}
+							],
+							"stateMutability": "view"
+						},
+						{
+							"type": "function",
+							"name": "balances",
+							"inputs": [
+								{
+									"name": "",
+									"type": "address",
+									"internalType": "address"
+								}
+							],
+							"outputs": [
+								{
+									"name": "",
+									"type": "uint256",
+									"internalType": "uint256"
+								}
+							],
+							"stateMutability": "view"
+						},
+						{
+							"type": "function",
+							"name": "deposit",
+							"inputs": [
+								{
+									"name": "amount",
+									"type": "uint256",
+									"internalType": "uint256"
+								}
+							],
+							"outputs": [],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "function",
+							"name": "executor",
+							"inputs": [],
+							"outputs": [
+								{
+									"name": "",
+									"type": "address",
+									"internalType": "address"
+								}
+							],
+							"stateMutability": "view"
+						},
+						{
+							"type": "function",
+							"name": "owner",
+							"inputs": [],
+							"outputs": [
+								{
+									"name": "",
+									"type": "address",
+									"internalType": "address"
+								}
+							],
+							"stateMutability": "view"
+						},
+						{
+							"type": "function",
+							"name": "pause",
+							"inputs": [],
+							"outputs": [],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "function",
+							"name": "paused",
+							"inputs": [],
+							"outputs": [
+								{
+									"name": "",
+									"type": "bool",
+									"internalType": "bool"
+								}
+							],
+							"stateMutability": "view"
+						},
+						{
+							"type": "function",
+							"name": "protectedExit",
+							"inputs": [
+								{
+									"name": "user",
+									"type": "address",
+									"internalType": "address"
+								},
+								{
+									"name": "recipient",
+									"type": "address",
+									"internalType": "address"
+								},
+								{
+									"name": "amount",
+									"type": "uint256",
+									"internalType": "uint256"
+								}
+							],
+							"outputs": [],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "function",
+							"name": "release",
+							"inputs": [
+								{
+									"name": "user",
+									"type": "address",
+									"internalType": "address"
+								},
+								{
+									"name": "amount",
+									"type": "uint256",
+									"internalType": "uint256"
+								}
+							],
+							"outputs": [],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "function",
+							"name": "renounceOwnership",
+							"inputs": [],
+							"outputs": [],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "function",
+							"name": "reserve",
+							"inputs": [
+								{
+									"name": "user",
+									"type": "address",
+									"internalType": "address"
+								},
+								{
+									"name": "amount",
+									"type": "uint256",
+									"internalType": "uint256"
+								}
+							],
+							"outputs": [],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "function",
+							"name": "reservedBalances",
+							"inputs": [
+								{
+									"name": "",
+									"type": "address",
+									"internalType": "address"
+								}
+							],
+							"outputs": [
+								{
+									"name": "",
+									"type": "uint256",
+									"internalType": "uint256"
+								}
+							],
+							"stateMutability": "view"
+						},
+						{
+							"type": "function",
+							"name": "setExecutor",
+							"inputs": [
+								{
+									"name": "executor_",
+									"type": "address",
+									"internalType": "address"
+								}
+							],
+							"outputs": [],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "function",
+							"name": "totalDeposits",
+							"inputs": [],
+							"outputs": [
+								{
+									"name": "",
+									"type": "uint256",
+									"internalType": "uint256"
+								}
+							],
+							"stateMutability": "view"
+						},
+						{
+							"type": "function",
+							"name": "transferOwnership",
+							"inputs": [
+								{
+									"name": "newOwner",
+									"type": "address",
+									"internalType": "address"
+								}
+							],
+							"outputs": [],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "function",
+							"name": "unpause",
+							"inputs": [],
+							"outputs": [],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "function",
+							"name": "withdraw",
+							"inputs": [
+								{
+									"name": "amount",
+									"type": "uint256",
+									"internalType": "uint256"
+								}
+							],
+							"outputs": [],
+							"stateMutability": "nonpayable"
+						},
+						{
+							"type": "event",
+							"name": "Deposited",
+							"inputs": [
+								{
+									"name": "user",
+									"type": "address",
+									"indexed": true,
+									"internalType": "address"
+								},
+								{
+									"name": "amount",
+									"type": "uint256",
+									"indexed": false,
+									"internalType": "uint256"
+								}
+							],
+							"anonymous": false
+						},
+						{
+							"type": "event",
+							"name": "ExecutorUpdated",
+							"inputs": [
+								{
+									"name": "executor",
+									"type": "address",
+									"indexed": true,
+									"internalType": "address"
+								}
+							],
+							"anonymous": false
+						},
+						{
+							"type": "event",
+							"name": "OwnershipTransferred",
+							"inputs": [
+								{
+									"name": "previousOwner",
+									"type": "address",
+									"indexed": true,
+									"internalType": "address"
+								},
+								{
+									"name": "newOwner",
+									"type": "address",
+									"indexed": true,
+									"internalType": "address"
+								}
+							],
+							"anonymous": false
+						},
+						{
+							"type": "event",
+							"name": "Paused",
+							"inputs": [
+								{
+									"name": "account",
+									"type": "address",
+									"indexed": false,
+									"internalType": "address"
+								}
+							],
+							"anonymous": false
+						},
+						{
+							"type": "event",
+							"name": "ProtectedExit",
+							"inputs": [
+								{
+									"name": "user",
+									"type": "address",
+									"indexed": true,
+									"internalType": "address"
+								},
+								{
+									"name": "recipient",
+									"type": "address",
+									"indexed": true,
+									"internalType": "address"
+								},
+								{
+									"name": "amount",
+									"type": "uint256",
+									"indexed": false,
+									"internalType": "uint256"
+								}
+							],
+							"anonymous": false
+						},
+						{
+							"type": "event",
+							"name": "ReservationReleased",
+							"inputs": [
+								{
+									"name": "user",
+									"type": "address",
+									"indexed": true,
+									"internalType": "address"
+								},
+								{
+									"name": "amount",
+									"type": "uint256",
+									"indexed": false,
+									"internalType": "uint256"
+								}
+							],
+							"anonymous": false
+						},
+						{
+							"type": "event",
+							"name": "Reserved",
+							"inputs": [
+								{
+									"name": "user",
+									"type": "address",
+									"indexed": true,
+									"internalType": "address"
+								},
+								{
+									"name": "amount",
+									"type": "uint256",
+									"indexed": false,
+									"internalType": "uint256"
+								}
+							],
+							"anonymous": false
+						},
+						{
+							"type": "event",
+							"name": "Unpaused",
+							"inputs": [
+								{
+									"name": "account",
+									"type": "address",
+									"indexed": false,
+									"internalType": "address"
+								}
+							],
+							"anonymous": false
+						},
+						{
+							"type": "event",
+							"name": "Withdrawn",
+							"inputs": [
+								{
+									"name": "user",
+									"type": "address",
+									"indexed": true,
+									"internalType": "address"
+								},
+								{
+									"name": "amount",
+									"type": "uint256",
+									"indexed": false,
+									"internalType": "uint256"
+								}
+							],
+							"anonymous": false
+						},
+						{
+							"type": "error",
+							"name": "EnforcedPause",
+							"inputs": []
+						},
+						{
+							"type": "error",
+							"name": "ExpectedPause",
+							"inputs": []
+						},
+						{
+							"type": "error",
+							"name": "InsufficientBalance",
+							"inputs": []
+						},
+						{
+							"type": "error",
+							"name": "NotExecutor",
+							"inputs": []
+						},
+						{
+							"type": "error",
+							"name": "OwnableInvalidOwner",
+							"inputs": [
+								{
+									"name": "owner",
+									"type": "address",
+									"internalType": "address"
+								}
+							]
+						},
+						{
+							"type": "error",
+							"name": "OwnableUnauthorizedAccount",
+							"inputs": [
+								{
+									"name": "account",
+									"type": "address",
+									"internalType": "address"
+								}
+							]
+						},
+						{
+							"type": "error",
+							"name": "ReentrancyGuardReentrantCall",
+							"inputs": []
+						},
+						{
+							"type": "error",
+							"name": "SafeERC20FailedOperation",
+							"inputs": [
+								{
+									"name": "token",
+									"type": "address",
+									"internalType": "address"
+								}
+							]
+						},
+						{
+							"type": "error",
+							"name": "ZeroAddress",
+							"inputs": []
+						},
+						{
+							"type": "error",
+							"name": "ZeroAmount",
+							"inputs": []
+						}
+					],
+					"evm": {
+						"bytecode": {
+							"object": "60a03461012857601f610ba838819003918201601f19168301916001600160401b0383118484101761012c57808492604094855283398101031261012857610052602061004b83610140565b9201610140565b60015f55906001600160a01b03821680156101155760018054610100600160a81b03198116600895861b610100600160a81b031617909155604051931c6001600160a01b03167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e05f80a36001600160a01b03168015801561010e575b6100ff57608052610a539081610155823960805181818161023f015281816103e00152818161065e01526106f50152f35b63d92e233d60e01b5f5260045ffd5b505f6100ce565b631e4fbdf760e01b5f525f60045260245ffd5b5f80fd5b634e487b7160e01b5f52604160045260245ffd5b51906001600160a01b03821682036101285756fe60806040526004361015610011575f80fd5b5f3560e01c80630357371d146107eb5780631c3c0ea81461078357806327e235e31461074b5780632e1a7d4d1461068d57806338d52e0f146106495780633f4ba83a146105e357806349ebdf12146105ab5780635c975abb14610589578063715018a61461052a5780637d8820971461050d5780638456cb59146104b55780638da5cb5b14610489578063a0821be31461045e578063b6b55f2514610380578063c34c08e514610358578063cc47a40b146102ac578063ea45b53e1461017c5763f2fde38b146100df575f80fd5b34610178576020366003190112610178576100f861085e565b6101006108df565b6001600160a01b0381169081156101655760018054610100600160a81b03198116600893841b610100600160a81b031617909155901c6001600160a01b03167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e05f80a3005b631e4fbdf760e01b5f525f60045260245ffd5b5f80fd5b346101785760603660031901126101785761019561085e565b6024356001600160a01b038116918282036101785760055460443591906001600160a01b0316330361029d576101c9610909565b811561028e57831561027f57816101df82610895565b1061027057816102637f650a996e826d5e35b28d4387ff18838ead1a75433fb9240fc4a49fa59f31d1b89360209360018060a01b031695865f526002855260405f2061022c838254610874565b905561023a82600454610874565b6004557f0000000000000000000000000000000000000000000000000000000000000000610978565b604051908152a360015f55005b631e9acf1760e31b5f5260045ffd5b63d92e233d60e01b5f5260045ffd5b631f2a200560e01b5f5260045ffd5b6361968ebb60e11b5f5260045ffd5b34610178576040366003190112610178576102c561085e565b60055460243591906001600160a01b0316330361029d57811561028e5760018060a01b031690815f5260036020526103018160405f20546108d2565b825f52600260205260405f2054106102705760207f904dcdc411e931497b95b06ddf8f8184815dd3bedc3c7c7cd4aed3ccd30783d891835f526003825260405f2061034d8282546108d2565b9055604051908152a2005b34610178575f366003190112610178576005546040516001600160a01b039091168152602090f35b346101785760203660031901126101785760043561039c610909565b6103a4610927565b801561028e576104046040516323b872dd60e01b6020820152336024820152306044820152826064820152606481526103de608482610942565b7f00000000000000000000000000000000000000000000000000000000000000006109ba565b335f52600260205260405f2061041b8282546108d2565b9055610429816004546108d2565b6004556040519081527f2da466a7b24304f47e87fa2e1e5a81b9831ce54fec19055ce277ca2f39ba42c460203392a260015f55005b3461017857602036600319011261017857602061048161047c61085e565b610895565b604051908152f35b34610178575f3660031901126101785760015460405160089190911c6001600160a01b03168152602090f35b34610178575f366003190112610178576104cd6108df565b6104d5610927565b600160ff19815416176001557f62e78cea01bee320cd4e420270b5ea74000d11b0c9f74754ebdbfc544b05a2586020604051338152a1005b34610178575f366003190112610178576020600454604051908152f35b34610178575f366003190112610178576105426108df565b60018054610100600160a81b031981169091555f9060081c6001600160a01b03167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e08280a3005b34610178575f36600319011261017857602060ff600154166040519015158152f35b34610178576020366003190112610178576001600160a01b036105cc61085e565b165f526003602052602060405f2054604051908152f35b34610178575f366003190112610178576105fb6108df565b60015460ff81161561063a5760ff19166001557f5db9ee0a495bf2e6ff9c91a7834c1ba4fdd244a5e8aa4e537bd38aeae4b073aa6020604051338152a1005b638dfc202b60e01b5f5260045ffd5b34610178575f366003190112610178576040517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b34610178576020366003190112610178576004356106a9610909565b6106b1610927565b801561028e57806106c133610895565b1061027057335f52600260205260405f206106dd828254610874565b90556106eb81600454610874565b60045561071981337f0000000000000000000000000000000000000000000000000000000000000000610978565b6040519081527f7084f5476618d8e60b11ef0d7d3f06914655adb8793e28ff7f018d4c76d505d560203392a260015f55005b34610178576020366003190112610178576001600160a01b0361076c61085e565b165f526002602052602060405f2054604051908152f35b346101785760203660031901126101785761079c61085e565b6107a46108df565b6001600160a01b0316801561027f57600580546001600160a01b031916821790557fd9436ef9ce00ffeabc5da2489701502d3bd1a5ed7b254a1981fc5ffef9828e115f80a2005b346101785760403660031901126101785761080461085e565b60055460243591906001600160a01b0316330361029d5760207f25a97da458861f48acea1c8ff613e48239da606920358a0b1ffd3c84dad2f9779160018060a01b031692835f526003825260405f2061034d828254610874565b600435906001600160a01b038216820361017857565b9190820391821161088157565b634e487b7160e01b5f52601160045260245ffd5b6001600160a01b03165f90815260026020908152604080832054600390925290912054808211156108cc576108c991610874565b90565b50505f90565b9190820180921161088157565b60015460081c6001600160a01b031633036108f657565b63118cdaa760e01b5f523360045260245ffd5b60025f54146109185760025f55565b633ee5aeb560e01b5f5260045ffd5b60ff6001541661093357565b63d93c066560e01b5f5260045ffd5b90601f8019910116810190811067ffffffffffffffff82111761096457604052565b634e487b7160e01b5f52604160045260245ffd5b60405163a9059cbb60e01b60208201526001600160a01b0390921660248301526044808301939093529181526109b8916109b3606483610942565b6109ba565b565b905f602091828151910182855af115610a12575f513d610a0957506001600160a01b0381163b155b6109e95750565b635274afe760e01b5f9081526001600160a01b0391909116600452602490fd5b600114156109e2565b6040513d5f823e3d90fdfea2646970667358221220ff9f49b7c5638625795f0ffe276cab10538407cd2b043271f72eb5d0c98f518a64736f6c634300081d0033",
+							"sourceMap": "694:4266:49:-:0;;;;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;-1:-1:-1;;;;;694:4266:49;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;;;;:::i;:::-;1857:1:30;-1:-1:-1;1857:1:30;;-1:-1:-1;;;;;694:4266:49;;1273:26:19;;1269:95;;1857:1:30;694:4266:49;;-1:-1:-1;;;;;;694:4266:49;;;;;;-1:-1:-1;;;;;694:4266:49;;;;;;;;;-1:-1:-1;;;;;694:4266:49;3052:40:19;-1:-1:-1;;3052:40:19;-1:-1:-1;;;;;694:4266:49;1954:20;;:44;;;;-1:-1:-1;1950:70:49;;2030:22;;694:4266;;;;;;2030:22;694:4266;;;;;;;;;;;;;;;;;;;;;1950:70;2007:13;;;-1:-1:-1;2007:13:49;;-1:-1:-1;2007:13:49;1954:44;;-1:-1:-1;1954:44:49;;1269:95:19;1322:31;;;-1:-1:-1;1322:31:19;-1:-1:-1;1322:31:19;694:4266:49;;-1:-1:-1;1322:31:19;694:4266:49;-1:-1:-1;694:4266:49;;;;;;-1:-1:-1;694:4266:49;;;;;-1:-1:-1;694:4266:49;;;;-1:-1:-1;;;;;694:4266:49;;;;;;:::o",
+							"linkReferences": {}
+						},
+						"deployedBytecode": {
+							"object": "60806040526004361015610011575f80fd5b5f3560e01c80630357371d146107eb5780631c3c0ea81461078357806327e235e31461074b5780632e1a7d4d1461068d57806338d52e0f146106495780633f4ba83a146105e357806349ebdf12146105ab5780635c975abb14610589578063715018a61461052a5780637d8820971461050d5780638456cb59146104b55780638da5cb5b14610489578063a0821be31461045e578063b6b55f2514610380578063c34c08e514610358578063cc47a40b146102ac578063ea45b53e1461017c5763f2fde38b146100df575f80fd5b34610178576020366003190112610178576100f861085e565b6101006108df565b6001600160a01b0381169081156101655760018054610100600160a81b03198116600893841b610100600160a81b031617909155901c6001600160a01b03167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e05f80a3005b631e4fbdf760e01b5f525f60045260245ffd5b5f80fd5b346101785760603660031901126101785761019561085e565b6024356001600160a01b038116918282036101785760055460443591906001600160a01b0316330361029d576101c9610909565b811561028e57831561027f57816101df82610895565b1061027057816102637f650a996e826d5e35b28d4387ff18838ead1a75433fb9240fc4a49fa59f31d1b89360209360018060a01b031695865f526002855260405f2061022c838254610874565b905561023a82600454610874565b6004557f0000000000000000000000000000000000000000000000000000000000000000610978565b604051908152a360015f55005b631e9acf1760e31b5f5260045ffd5b63d92e233d60e01b5f5260045ffd5b631f2a200560e01b5f5260045ffd5b6361968ebb60e11b5f5260045ffd5b34610178576040366003190112610178576102c561085e565b60055460243591906001600160a01b0316330361029d57811561028e5760018060a01b031690815f5260036020526103018160405f20546108d2565b825f52600260205260405f2054106102705760207f904dcdc411e931497b95b06ddf8f8184815dd3bedc3c7c7cd4aed3ccd30783d891835f526003825260405f2061034d8282546108d2565b9055604051908152a2005b34610178575f366003190112610178576005546040516001600160a01b039091168152602090f35b346101785760203660031901126101785760043561039c610909565b6103a4610927565b801561028e576104046040516323b872dd60e01b6020820152336024820152306044820152826064820152606481526103de608482610942565b7f00000000000000000000000000000000000000000000000000000000000000006109ba565b335f52600260205260405f2061041b8282546108d2565b9055610429816004546108d2565b6004556040519081527f2da466a7b24304f47e87fa2e1e5a81b9831ce54fec19055ce277ca2f39ba42c460203392a260015f55005b3461017857602036600319011261017857602061048161047c61085e565b610895565b604051908152f35b34610178575f3660031901126101785760015460405160089190911c6001600160a01b03168152602090f35b34610178575f366003190112610178576104cd6108df565b6104d5610927565b600160ff19815416176001557f62e78cea01bee320cd4e420270b5ea74000d11b0c9f74754ebdbfc544b05a2586020604051338152a1005b34610178575f366003190112610178576020600454604051908152f35b34610178575f366003190112610178576105426108df565b60018054610100600160a81b031981169091555f9060081c6001600160a01b03167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e08280a3005b34610178575f36600319011261017857602060ff600154166040519015158152f35b34610178576020366003190112610178576001600160a01b036105cc61085e565b165f526003602052602060405f2054604051908152f35b34610178575f366003190112610178576105fb6108df565b60015460ff81161561063a5760ff19166001557f5db9ee0a495bf2e6ff9c91a7834c1ba4fdd244a5e8aa4e537bd38aeae4b073aa6020604051338152a1005b638dfc202b60e01b5f5260045ffd5b34610178575f366003190112610178576040517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b34610178576020366003190112610178576004356106a9610909565b6106b1610927565b801561028e57806106c133610895565b1061027057335f52600260205260405f206106dd828254610874565b90556106eb81600454610874565b60045561071981337f0000000000000000000000000000000000000000000000000000000000000000610978565b6040519081527f7084f5476618d8e60b11ef0d7d3f06914655adb8793e28ff7f018d4c76d505d560203392a260015f55005b34610178576020366003190112610178576001600160a01b0361076c61085e565b165f526002602052602060405f2054604051908152f35b346101785760203660031901126101785761079c61085e565b6107a46108df565b6001600160a01b0316801561027f57600580546001600160a01b031916821790557fd9436ef9ce00ffeabc5da2489701502d3bd1a5ed7b254a1981fc5ffef9828e115f80a2005b346101785760403660031901126101785761080461085e565b60055460243591906001600160a01b0316330361029d5760207f25a97da458861f48acea1c8ff613e48239da606920358a0b1ffd3c84dad2f9779160018060a01b031692835f526003825260405f2061034d828254610874565b600435906001600160a01b038216820361017857565b9190820391821161088157565b634e487b7160e01b5f52601160045260245ffd5b6001600160a01b03165f90815260026020908152604080832054600390925290912054808211156108cc576108c991610874565b90565b50505f90565b9190820180921161088157565b60015460081c6001600160a01b031633036108f657565b63118cdaa760e01b5f523360045260245ffd5b60025f54146109185760025f55565b633ee5aeb560e01b5f5260045ffd5b60ff6001541661093357565b63d93c066560e01b5f5260045ffd5b90601f8019910116810190811067ffffffffffffffff82111761096457604052565b634e487b7160e01b5f52604160045260245ffd5b60405163a9059cbb60e01b60208201526001600160a01b0390921660248301526044808301939093529181526109b8916109b3606483610942565b6109ba565b565b905f602091828151910182855af115610a12575f513d610a0957506001600160a01b0381163b155b6109e95750565b635274afe760e01b5f9081526001600160a01b0391909116600452602490fd5b600114156109e2565b6040513d5f823e3d90fdfea2646970667358221220ff9f49b7c5638625795f0ffe276cab10538407cd2b043271f72eb5d0c98f518a64736f6c634300081d0033",
+							"sourceMap": "694:4266:49:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;;;:::i;:::-;1500:62:19;;:::i;:::-;-1:-1:-1;;;;;694:4266:49;;;2627:22:19;;2623:91;;3004:6;694:4266:49;;-1:-1:-1;;;;;;694:4266:49;;;;;;-1:-1:-1;;;;;694:4266:49;;;;;;;-1:-1:-1;;;;;694:4266:49;3052:40:19;-1:-1:-1;;3052:40:19;694:4266:49;2623:91:19;2672:31;;;694:4266:49;2672:31:19;694:4266:49;;;;;2672:31:19;694:4266:49;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;;;:::i;:::-;;;-1:-1:-1;;;;;694:4266:49;;;;;;;;1826:8;694:4266;;;;;-1:-1:-1;;;;;694:4266:49;1812:10;:22;1808:48;;2466:103:30;;:::i;:::-;4315:11:49;;4311:36;;4361:23;;4357:49;;4585:22;;;;:::i;:::-;:31;4581:65;;694:4266;4753:6;4775:38;694:4266;;;;;;;;;;;;;4656:8;694:4266;;;;;4656:24;694:4266;;;4656:24;:::i;:::-;694:4266;;4690:23;694:4266;;;4690:23;:::i;:::-;694:4266;;4723:5;4753:6;:::i;:::-;694:4266;;;;;4775:38;694:4266;;;;4581:65;3809:21;;;694:4266;4625:21;694:4266;;4625:21;4357:49;2170:13;;;694:4266;4393:13;694:4266;;4393:13;4311:36;3737:12;;;694:4266;4335:12;694:4266;;4335:12;1808:48;1843:13;;;694:4266;1843:13;694:4266;;1843:13;694:4266;;;;;;-1:-1:-1;;694:4266:49;;;;;;:::i;:::-;1826:8;694:4266;;;;;-1:-1:-1;;;;;694:4266:49;1812:10;:22;1808:48;;3155:11;;3151:36;;694:4266;;;;;;;;;;3201:16;694:4266;;3201:31;694:4266;;;;;3201:31;:::i;:::-;694:4266;;;3235:8;694:4266;;;;;;-1:-1:-1;3197:82:49;;694:4266;3336:22;694:4266;;;;3201:16;694:4266;;;;;3289:32;694:4266;;;3289:32;:::i;:::-;694:4266;;;;;;;3336:22;694:4266;;;;;;;-1:-1:-1;;694:4266:49;;;;1247:23;694:4266;;;-1:-1:-1;;;;;694:4266:49;;;;;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;;;2466:103:30;;:::i;:::-;1315:72:29;;:::i;:::-;2350:11:49;;2346:36;;1745:53:27;694:4266:49;;;;;;1745:53:27;;;2415:10:49;1745:53:27;;;694:4266:49;2435:4;694:4266;;;;;;;;;;1745:53:27;;;;;;:::i;:::-;2392:5:49;1745:53:27;:::i;:::-;2415:10:49;694:4266;;2459:8;694:4266;;;;;2459:30;694:4266;;;2459:30;:::i;:::-;694:4266;;2499:23;694:4266;;;2499:23;:::i;:::-;694:4266;;;;;;;2537:29;694:4266;2415:10;2537:29;;694:4266;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;;;;;:::i;:::-;;:::i;:::-;;;;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;;;;;;;;;;-1:-1:-1;;;;;694:4266:49;;;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;1500:62:19;;:::i;:::-;1315:72:29;;:::i;:::-;2408:4;694:4266:49;;;;;;2408:4:29;694:4266:49;2427:20:29;694:4266:49;;;735:10:28;694:4266:49;;2427:20:29;694:4266:49;;;;;;;-1:-1:-1;;694:4266:49;;;;;;;;;;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;1500:62:19;;:::i;:::-;3004:6;694:4266:49;;-1:-1:-1;;;;;;694:4266:49;;;;;;;;;-1:-1:-1;;;;;694:4266:49;3052:40:19;694:4266:49;;3052:40:19;694:4266:49;;;;;;;-1:-1:-1;;694:4266:49;;;;;;1796:7:29;694:4266:49;;;;;;;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;-1:-1:-1;;;;;694:4266:49;;:::i;:::-;;;;1074:51;694:4266;;;;;;;;;;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;1500:62:19;;:::i;:::-;1796:7:29;694:4266:49;;;;2140:9:29;2136:62;;694:4266:49;;;1796:7:29;694:4266:49;2674:22:29;694:4266:49;;;735:10:28;694:4266:49;;2674:22:29;694:4266:49;2136:62:29;2172:15;;;694:4266:49;2172:15:29;694:4266:49;;2172:15:29;694:4266:49;;;;;;-1:-1:-1;;694:4266:49;;;;;;796:29;-1:-1:-1;;;;;694:4266:49;;;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;;;2466:103:30;;:::i;:::-;1315:72:29;;:::i;:::-;3717:11:49;;3713:36;;3780:10;3763:28;3780:10;3763:28;:::i;:::-;:37;3759:71;;3780:10;694:4266;;3840:8;694:4266;;;;;3840:30;694:4266;;;3840:30;:::i;:::-;694:4266;;3880:23;694:4266;;;3880:23;:::i;:::-;694:4266;;3944:6;3780:10;;3913:5;3944:6;:::i;:::-;694:4266;;;;;3966:29;694:4266;3780:10;3966:29;;694:4266;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;-1:-1:-1;;;;;694:4266:49;;:::i;:::-;;;;832:43;694:4266;;;;;;;;;;;;;;;;;;;-1:-1:-1;;694:4266:49;;;;;;:::i;:::-;1500:62:19;;:::i;:::-;-1:-1:-1;;;;;694:4266:49;2138:23;;2134:49;;2193:20;694:4266;;-1:-1:-1;;;;;;694:4266:49;;;;;2228:26;-1:-1:-1;;2228:26:49;694:4266;;;;;;;-1:-1:-1;;694:4266:49;;;;;;:::i;:::-;1826:8;694:4266;;;;;-1:-1:-1;;;;;694:4266:49;1812:10;:22;1808:48;;694:4266;3587:33;694:4266;;;;;;;;;;;3540:16;694:4266;;;;;3540:32;694:4266;;;3540:32;:::i;694:4266::-;;;;-1:-1:-1;;;;;694:4266:49;;;;;;:::o;:::-;;;;;;;;;;:::o;:::-;;;;;;;;;;;;2650:191;-1:-1:-1;;;;;694:4266:49;-1:-1:-1;694:4266:49;;;2742:8;694:4266;;;;;;;;;2778:16;694:4266;;;;;;;2817:5;;;;;;2825;;;:::i;:::-;2650:191;:::o;2817:17::-;;;-1:-1:-1;2650:191:49;:::o;694:4266::-;;;;;;;;;;:::o;1796:162:19:-;694:4266:49;;;;-1:-1:-1;;;;;694:4266:49;735:10:28;1855:23:19;1851:101;;1796:162::o;1851:101::-;1901:40;;;-1:-1:-1;1901:40:19;735:10:28;1901:40:19;694:4266:49;;-1:-1:-1;1901:40:19;2575:307:30;1899:1;2702:7;694:4266:49;2702:18:30;2698:86;;1899:1;2702:7;694:4266:49;2575:307:30:o;2698:86::-;2743:30;;;2702:7;2743:30;;2702:7;2743:30;1878:128:29;694:4266:49;1796:7:29;694:4266:49;;1939:61:29;;1878:128::o;1939:61::-;1974:15;;;-1:-1:-1;1974:15:29;;-1:-1:-1;1974:15:29;694:4266:49;;;;;;;;;;;;;;;;;;;;;:::o;:::-;;;;-1:-1:-1;694:4266:49;;;;;-1:-1:-1;694:4266:49;1219:160:27;694:4266:49;;-1:-1:-1;;;1328:43:27;;;;-1:-1:-1;;;;;694:4266:49;;;1328:43:27;;;694:4266:49;;;;;;;;;1328:43:27;;;;;;;694:4266:49;1328:43:27;:::i;:::-;;:::i;:::-;1219:160::o;8370:720::-;;-1:-1:-1;8507:421:27;8370:720;8507:421;;;;;;;;;;;;-1:-1:-1;8507:421:27;;8942:15;;-1:-1:-1;;;;;;694:4266:49;;8960:26:27;:31;8942:68;8938:146;;8370:720;:::o;8938:146::-;-1:-1:-1;;;;9033:40:27;;;-1:-1:-1;;;;;694:4266:49;;;;9033:40:27;694:4266:49;;;9033:40:27;8942:68;9009:1;8994:16;;8942:68;;8507:421;;;;-1:-1:-1;8507:421:27;;;;",
+							"linkReferences": {},
+							"immutableReferences": {
+								"47141": [
+									{
+										"start": 575,
+										"length": 32
+									},
+									{
+										"start": 992,
+										"length": 32
+									},
+									{
+										"start": 1630,
+										"length": 32
+									},
+									{
+										"start": 1781,
+										"length": 32
+									}
+								]
+							}
+						},
+						"methodIdentifiers": {
+							"asset()": "38d52e0f",
+							"availableBalance(address)": "a0821be3",
+							"balances(address)": "27e235e3",
+							"deposit(uint256)": "b6b55f25",
+							"executor()": "c34c08e5",
+							"owner()": "8da5cb5b",
+							"pause()": "8456cb59",
+							"paused()": "5c975abb",
+							"protectedExit(address,address,uint256)": "ea45b53e",
+							"release(address,uint256)": "0357371d",
+							"renounceOwnership()": "715018a6",
+							"reserve(address,uint256)": "cc47a40b",
+							"reservedBalances(address)": "49ebdf12",
+							"setExecutor(address)": "1c3c0ea8",
+							"totalDeposits()": "7d882097",
+							"transferOwnership(address)": "f2fde38b",
+							"unpause()": "3f4ba83a",
+							"withdraw(uint256)": "2e1a7d4d"
+						}
+					},
+					"metadata": {
+						"compiler": {
+							"version": "0.8.29+commit.ab55807c"
+						},
+						"language": "Solidity",
+						"output": {
+							"abi": [
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "asset_",
+											"type": "address"
+										},
+										{
+											"internalType": "address",
+											"name": "owner_",
+											"type": "address"
+										}
+									],
+									"stateMutability": "nonpayable",
+									"type": "constructor"
+								},
+								{
+									"inputs": [],
+									"type": "error",
+									"name": "EnforcedPause"
+								},
+								{
+									"inputs": [],
+									"type": "error",
+									"name": "ExpectedPause"
+								},
+								{
+									"inputs": [],
+									"type": "error",
+									"name": "InsufficientBalance"
+								},
+								{
+									"inputs": [],
+									"type": "error",
+									"name": "NotExecutor"
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "owner",
+											"type": "address"
+										}
+									],
+									"type": "error",
+									"name": "OwnableInvalidOwner"
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "account",
+											"type": "address"
+										}
+									],
+									"type": "error",
+									"name": "OwnableUnauthorizedAccount"
+								},
+								{
+									"inputs": [],
+									"type": "error",
+									"name": "ReentrancyGuardReentrantCall"
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "token",
+											"type": "address"
+										}
+									],
+									"type": "error",
+									"name": "SafeERC20FailedOperation"
+								},
+								{
+									"inputs": [],
+									"type": "error",
+									"name": "ZeroAddress"
+								},
+								{
+									"inputs": [],
+									"type": "error",
+									"name": "ZeroAmount"
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "user",
+											"type": "address",
+											"indexed": true
+										},
+										{
+											"internalType": "uint256",
+											"name": "amount",
+											"type": "uint256",
+											"indexed": false
+										}
+									],
+									"type": "event",
+									"name": "Deposited",
+									"anonymous": false
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "executor",
+											"type": "address",
+											"indexed": true
+										}
+									],
+									"type": "event",
+									"name": "ExecutorUpdated",
+									"anonymous": false
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "previousOwner",
+											"type": "address",
+											"indexed": true
+										},
+										{
+											"internalType": "address",
+											"name": "newOwner",
+											"type": "address",
+											"indexed": true
+										}
+									],
+									"type": "event",
+									"name": "OwnershipTransferred",
+									"anonymous": false
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "account",
+											"type": "address",
+											"indexed": false
+										}
+									],
+									"type": "event",
+									"name": "Paused",
+									"anonymous": false
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "user",
+											"type": "address",
+											"indexed": true
+										},
+										{
+											"internalType": "address",
+											"name": "recipient",
+											"type": "address",
+											"indexed": true
+										},
+										{
+											"internalType": "uint256",
+											"name": "amount",
+											"type": "uint256",
+											"indexed": false
+										}
+									],
+									"type": "event",
+									"name": "ProtectedExit",
+									"anonymous": false
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "user",
+											"type": "address",
+											"indexed": true
+										},
+										{
+											"internalType": "uint256",
+											"name": "amount",
+											"type": "uint256",
+											"indexed": false
+										}
+									],
+									"type": "event",
+									"name": "ReservationReleased",
+									"anonymous": false
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "user",
+											"type": "address",
+											"indexed": true
+										},
+										{
+											"internalType": "uint256",
+											"name": "amount",
+											"type": "uint256",
+											"indexed": false
+										}
+									],
+									"type": "event",
+									"name": "Reserved",
+									"anonymous": false
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "account",
+											"type": "address",
+											"indexed": false
+										}
+									],
+									"type": "event",
+									"name": "Unpaused",
+									"anonymous": false
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "user",
+											"type": "address",
+											"indexed": true
+										},
+										{
+											"internalType": "uint256",
+											"name": "amount",
+											"type": "uint256",
+											"indexed": false
+										}
+									],
+									"type": "event",
+									"name": "Withdrawn",
+									"anonymous": false
+								},
+								{
+									"inputs": [],
+									"stateMutability": "view",
+									"type": "function",
+									"name": "asset",
+									"outputs": [
+										{
+											"internalType": "contract IERC20",
+											"name": "",
+											"type": "address"
+										}
+									]
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "user",
+											"type": "address"
+										}
+									],
+									"stateMutability": "view",
+									"type": "function",
+									"name": "availableBalance",
+									"outputs": [
+										{
+											"internalType": "uint256",
+											"name": "",
+											"type": "uint256"
+										}
+									]
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "",
+											"type": "address"
+										}
+									],
+									"stateMutability": "view",
+									"type": "function",
+									"name": "balances",
+									"outputs": [
+										{
+											"internalType": "uint256",
+											"name": "",
+											"type": "uint256"
+										}
+									]
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "uint256",
+											"name": "amount",
+											"type": "uint256"
+										}
+									],
+									"stateMutability": "nonpayable",
+									"type": "function",
+									"name": "deposit"
+								},
+								{
+									"inputs": [],
+									"stateMutability": "view",
+									"type": "function",
+									"name": "executor",
+									"outputs": [
+										{
+											"internalType": "address",
+											"name": "",
+											"type": "address"
+										}
+									]
+								},
+								{
+									"inputs": [],
+									"stateMutability": "view",
+									"type": "function",
+									"name": "owner",
+									"outputs": [
+										{
+											"internalType": "address",
+											"name": "",
+											"type": "address"
+										}
+									]
+								},
+								{
+									"inputs": [],
+									"stateMutability": "nonpayable",
+									"type": "function",
+									"name": "pause"
+								},
+								{
+									"inputs": [],
+									"stateMutability": "view",
+									"type": "function",
+									"name": "paused",
+									"outputs": [
+										{
+											"internalType": "bool",
+											"name": "",
+											"type": "bool"
+										}
+									]
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "user",
+											"type": "address"
+										},
+										{
+											"internalType": "address",
+											"name": "recipient",
+											"type": "address"
+										},
+										{
+											"internalType": "uint256",
+											"name": "amount",
+											"type": "uint256"
+										}
+									],
+									"stateMutability": "nonpayable",
+									"type": "function",
+									"name": "protectedExit"
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "user",
+											"type": "address"
+										},
+										{
+											"internalType": "uint256",
+											"name": "amount",
+											"type": "uint256"
+										}
+									],
+									"stateMutability": "nonpayable",
+									"type": "function",
+									"name": "release"
+								},
+								{
+									"inputs": [],
+									"stateMutability": "nonpayable",
+									"type": "function",
+									"name": "renounceOwnership"
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "user",
+											"type": "address"
+										},
+										{
+											"internalType": "uint256",
+											"name": "amount",
+											"type": "uint256"
+										}
+									],
+									"stateMutability": "nonpayable",
+									"type": "function",
+									"name": "reserve"
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "",
+											"type": "address"
+										}
+									],
+									"stateMutability": "view",
+									"type": "function",
+									"name": "reservedBalances",
+									"outputs": [
+										{
+											"internalType": "uint256",
+											"name": "",
+											"type": "uint256"
+										}
+									]
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "executor_",
+											"type": "address"
+										}
+									],
+									"stateMutability": "nonpayable",
+									"type": "function",
+									"name": "setExecutor"
+								},
+								{
+									"inputs": [],
+									"stateMutability": "view",
+									"type": "function",
+									"name": "totalDeposits",
+									"outputs": [
+										{
+											"internalType": "uint256",
+											"name": "",
+											"type": "uint256"
+										}
+									]
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "address",
+											"name": "newOwner",
+											"type": "address"
+										}
+									],
+									"stateMutability": "nonpayable",
+									"type": "function",
+									"name": "transferOwnership"
+								},
+								{
+									"inputs": [],
+									"stateMutability": "nonpayable",
+									"type": "function",
+									"name": "unpause"
+								},
+								{
+									"inputs": [
+										{
+											"internalType": "uint256",
+											"name": "amount",
+											"type": "uint256"
+										}
+									],
+									"stateMutability": "nonpayable",
+									"type": "function",
+									"name": "withdraw"
+								}
+							],
+							"devdoc": {
+								"kind": "dev",
+								"methods": {
+									"owner()": {
+										"details": "Returns the address of the current owner."
+									},
+									"paused()": {
+										"details": "Returns true if the contract is paused, and false otherwise."
+									},
+									"protectedExit(address,address,uint256)": {
+										"details": "Called by ProtectionExecutor after policy validation. Funds never go to executor."
+									},
+									"renounceOwnership()": {
+										"details": "Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner."
+									},
+									"reserve(address,uint256)": {
+										"details": "Only callable by the executor (ProtectionManager). Reverts if the      reservation would exceed the user's deposited balance."
+									},
+									"transferOwnership(address)": {
+										"details": "Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner."
+									}
+								},
+								"version": 1
+							},
+							"userdoc": {
+								"kind": "user",
+								"methods": {
+									"availableBalance(address)": {
+										"notice": "Balance not committed to any active protection policy."
+									},
+									"executor()": {
+										"notice": "Address allowed to trigger protected exits (ProtectionExecutor)."
+									},
+									"protectedExit(address,address,uint256)": {
+										"notice": "Executor-only: move `amount` of `user`'s protected balance to `recipient`."
+									},
+									"release(address,uint256)": {
+										"notice": "Release a previously reserved amount (policy cancelled/expired/executed)."
+									},
+									"reserve(address,uint256)": {
+										"notice": "Reserve `amount` of `user`'s balance for a protection policy."
+									},
+									"reservedBalances(address)": {
+										"notice": "Amount of each user's balance reserved by active protection policies."
+									}
+								},
+								"version": 1
+							}
+						},
+						"settings": {
+							"remappings": [
+								"@openzeppelin/=lib/openzeppelin-contracts/",
+								"@reactive/=lib/reactive-lib-omni/",
+								"erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/",
+								"forge-std/=lib/forge-std/src/",
+								"halmos-cheatcodes/=lib/openzeppelin-contracts/lib/halmos-cheatcodes/src/",
+								"openzeppelin-contracts/=lib/openzeppelin-contracts/",
+								"reactive-lib-omni/=lib/reactive-lib-omni/src/"
+							],
+							"optimizer": {
+								"enabled": true,
+								"runs": 200
+							},
+							"metadata": {
+								"bytecodeHash": "ipfs"
+							},
+							"compilationTarget": {
+								"src/vault/PulseGuardVault.sol": "PulseGuardVault"
+							},
+							"evmVersion": "cancun",
+							"libraries": {},
+							"viaIR": true
+						},
+						"sources": {
+							"lib/openzeppelin-contracts/contracts/access/Ownable.sol": {
+								"keccak256": "0xff6d0bb2e285473e5311d9d3caacb525ae3538a80758c10649a4d61029b017bb",
+								"urls": [
+									"bzz-raw://8ed324d3920bb545059d66ab97d43e43ee85fd3bd52e03e401f020afb0b120f6",
+									"dweb:/ipfs/QmfEckWLmZkDDcoWrkEvMWhms66xwTLff9DDhegYpvHo1a"
+								],
+								"license": "MIT"
+							},
+							"lib/openzeppelin-contracts/contracts/interfaces/IERC1363.sol": {
+								"keccak256": "0xd5ea07362ab630a6a3dee4285a74cf2377044ca2e4be472755ad64d7c5d4b69d",
+								"urls": [
+									"bzz-raw://da5e832b40fc5c3145d3781e2e5fa60ac2052c9d08af7e300dc8ab80c4343100",
+									"dweb:/ipfs/QmTzf7N5ZUdh5raqtzbM11yexiUoLC9z3Ws632MCuycq1d"
+								],
+								"license": "MIT"
+							},
+							"lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol": {
+								"keccak256": "0x0afcb7e740d1537b252cb2676f600465ce6938398569f09ba1b9ca240dde2dfc",
+								"urls": [
+									"bzz-raw://1c299900ac4ec268d4570ecef0d697a3013cd11a6eb74e295ee3fbc945056037",
+									"dweb:/ipfs/Qmab9owJoxcA7vJT5XNayCMaUR1qxqj1NDzzisduwaJMcZ"
+								],
+								"license": "MIT"
+							},
+							"lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol": {
+								"keccak256": "0x1a6221315ce0307746c2c4827c125d821ee796c74a676787762f4778671d4f44",
+								"urls": [
+									"bzz-raw://1bb2332a7ee26dd0b0de9b7fe266749f54820c99ab6a3bcb6f7e6b751d47ee2d",
+									"dweb:/ipfs/QmcRWpaBeCYkhy68PR3B4AgD7asuQk7PwkWxrvJbZcikLF"
+								],
+								"license": "MIT"
+							},
+							"lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol": {
+								"keccak256": "0x74ed01eb66b923d0d0cfe3be84604ac04b76482a55f9dd655e1ef4d367f95bc2",
+								"urls": [
+									"bzz-raw://5282825a626cfe924e504274b864a652b0023591fa66f06a067b25b51ba9b303",
+									"dweb:/ipfs/QmeCfPykghhMc81VJTrHTC7sF6CRvaA1FXVq2pJhwYp1dV"
+								],
+								"license": "MIT"
+							},
+							"lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol": {
+								"keccak256": "0x982c5cb790ab941d1e04f807120a71709d4c313ba0bfc16006447ffbd27fbbd5",
+								"urls": [
+									"bzz-raw://8150ceb4ac947e8a442b2a9c017e01e880b2be2dd958f1fa9bc405f4c5a86508",
+									"dweb:/ipfs/QmbcBmFX66AY6Kbhnd5gx7zpkgqnUafo43XnmayAM7zVdB"
+								],
+								"license": "MIT"
+							},
+							"lib/openzeppelin-contracts/contracts/utils/Context.sol": {
+								"keccak256": "0x493033a8d1b176a037b2cc6a04dad01a5c157722049bbecf632ca876224dd4b2",
+								"urls": [
+									"bzz-raw://6a708e8a5bdb1011c2c381c9a5cfd8a9a956d7d0a9dc1bd8bcdaf52f76ef2f12",
+									"dweb:/ipfs/Qmax9WHBnVsZP46ZxEMNRQpLQnrdE4dK8LehML1Py8FowF"
+								],
+								"license": "MIT"
+							},
+							"lib/openzeppelin-contracts/contracts/utils/Pausable.sol": {
+								"keccak256": "0xdb484371dfbb848cb6f5d70464e9ac9b2900e4164ead76bbce4fef0b44bcc68f",
+								"urls": [
+									"bzz-raw://f9d6f6f6600a2bec622f699081b58350873b5e63ce05464d17d674a290bb8a7c",
+									"dweb:/ipfs/QmQKVzSQY1PM3Bid4QhgVVZyx6B4Jx7XgaQzLKHj38vJz8"
+								],
+								"license": "MIT"
+							},
+							"lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol": {
+								"keccak256": "0x11a5a79827df29e915a12740caf62fe21ebe27c08c9ae3e09abe9ee3ba3866d3",
+								"urls": [
+									"bzz-raw://3cf0c69ab827e3251db9ee6a50647d62c90ba580a4d7bbff21f2bea39e7b2f4a",
+									"dweb:/ipfs/QmZiKwtKU1SBX4RGfQtY7PZfiapbbu6SZ9vizGQD9UHjRA"
+								],
+								"license": "MIT"
+							},
+							"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol": {
+								"keccak256": "0x8891738ffe910f0cf2da09566928589bf5d63f4524dd734fd9cedbac3274dd5c",
+								"urls": [
+									"bzz-raw://971f954442df5c2ef5b5ebf1eb245d7105d9fbacc7386ee5c796df1d45b21617",
+									"dweb:/ipfs/QmadRjHbkicwqwwh61raUEapaVEtaLMcYbQZWs9gUkgj3u"
+								],
+								"license": "MIT"
+							},
+							"src/vault/PulseGuardVault.sol": {
+								"keccak256": "0x2dfb87cb7a46deee15dbc4ba8ccc78588d7dff74991221aca54bcbd94aa2df3c",
+								"urls": [
+									"bzz-raw://8bc01dc55697ace83e5faf4cf955a1c4a9ac5f127cd14ab17fd481fd8acce8cc",
+									"dweb:/ipfs/QmTUiki7cSKUEMHnb8WGg7yvxprzmF5reSQQ8PBzzymdFp"
+								],
+								"license": "MIT"
+							}
+						},
+						"version": 1
+					}
+				}
+			}
+		},
+		"sources": {
+			"src/vault/PulseGuardVault.sol": {
+				"id": 49
+			}
+		}
+	}
+}

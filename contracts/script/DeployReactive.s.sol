@@ -19,7 +19,7 @@ contract DeployReactive is Script {
         address manager = vm.envAddress("MANAGER_ADDRESS");
         uint256 priceTopic0 = uint256(keccak256("PriceUpdated(address,uint256,uint256)"));
         uint256 syncTopic0 = uint256(
-            keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)")
+            keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,uint64,bool)")
         );
 
         vm.startBroadcast(deployerKey);

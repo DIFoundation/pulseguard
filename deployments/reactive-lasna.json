@@ -4,13 +4,27 @@
   "rpc": "https://lasna-rpc.rnk.dev/",
   "explorer": "https://lasna.reactscan.net",
   "deployed": true,
-  "deployedAt": "2026-11-15",
+  "deployedAt": "2026-11-17",
   "deployer": "0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67",
   "contracts": {
     "PulseGuardReactive": {
-      "address": "0x79d74e8799881524de20cc294744137db840853f",
-      "txHash": "0xa428a591796dc4ccafa6a3fdda63a794e3a950432811217e4843d2413473c154",
-      "block": 8386771
+      "address": "0xdE254352681d843375895186a88DAF82B2930C7b",
+      "txHash": "0x0225d0d69ba550c677037765911e33957d7976a928b99fa1f282d3a69ca7e438",
+      "block": 8589866,
+      "note": "Redeployed with 0.3 REACT funding at construction — constructor SYSTEM.subscribe does not stick when the contract is unfunded. Previous deployment 0xd961a25e6661d32faa51f09f4b21ce81a2081279 had dead subscriptions."
+    }
+  },
+  "configuration": {
+    "ConfigureReactive.s.sol": {
+      "txHashes": [
+        "0xf484fbc880c4c360c4629129d329ead3f016da67330e8bb33ab301aa2bbd7b9b",
+        "0xae148aba08f0a1d5808474b73351c5725390c3a7f61b65d399d94d8dc513b45c"
+      ],
+      "note": "executorForChain[84532] = ProtectionExecutor (Base), executorForChain[1301] = CrossChainExecutor (Unichain)."
+    },
+    "ProtectionManager.setReactiveContract": {
+      "txHash": "0x2e030ab6ff3ada0543c10f60653761b39345592c04535d93a3600fba1e164376",
+      "note": "Base Sepolia — points manager at the new reactive contract."
     }
   }
 }

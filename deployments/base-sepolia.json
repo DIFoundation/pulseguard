@@ -4,39 +4,52 @@
   "rpc": "https://sepolia.base.org",
   "explorer": "https://sepolia.basescan.org",
   "deployed": true,
-  "deployedAt": "2026-11-15",
+  "deployedAt": "2026-11-17",
   "deployer": "0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67",
+  "verified": true,
   "contracts": {
     "MockERC20": {
-      "address": "0x892d78DCE74EC31C44f315A77A170143A8C9950F",
-      "txHash": "0xe5325d462b7fd0f6600ec2024ab11409ebc438b61dab4a927062a2039ce0e373",
-      "block": 58697551
+      "address": "0x9e8cd47efe99252c369afffdb44290663674e77d",
+      "txHash": "0xd42a681a2e10527fa3f86db5e146bea09c1f9dd620e5fc9202b4cc4556ec9161",
+      "block": 59854516
     },
     "MockPriceFeed": {
-      "address": "0xD931C24199a65A7A80fc0758272bBb5e4958F4B0",
-      "txHash": "0x059c0523bbda5b79a967aba3cf3ce2f6b8bbafb40928ef63e84ffa00e84e3816",
-      "block": 58697551
+      "address": "0x3c4603b75eab1dccc581eefc2ac8a9fd99bffb88",
+      "txHash": "0x0bcdb77f273f6330cda844fbe2a7be9fa5bd5cf4da6c8994c291f2e1272d4449",
+      "block": 59854516
     },
     "PulseGuardVault": {
-      "address": "0x79Ac47b744b5147FaAFB84A2C3df673B71312dc6",
-      "txHash": "0xe98134a6b387e2fc1302e29556b1467925a31b2bbe0fbb9170f38831e3e683c3",
-      "block": 58697552
+      "address": "0x818668f6929d55a9b2b20eca3820231302c035e3",
+      "txHash": "0xe524e37753c1efcbc13c10798bfdc1591fc4b61f8558fed0813217ecedfa5c07",
+      "block": 59854516
     },
     "ProtectionManager": {
-      "address": "0x98BDCD32229f39C821313Ab5eEA458E862A2EFCe",
-      "txHash": "0x15b77d61dde8631258f625a4deeec8e577c1d5eb490db761b25f6829fa301ad9",
-      "block": 59005041
+      "address": "0x1a5cbd231304ded72bede6edaf06c00c25011f4e",
+      "txHash": "0xad7f9dd1426bdefb1151a664ab64d9a2e1cdf870b555baba5a7c20fe35894e16",
+      "block": 59854517
     },
     "ProtectionExecutor": {
-      "address": "0xdbacf3cd9face330b91897f9523f068cf6764bd8",
-      "txHash": "0x1611e7696d660dbb14f7eb4b660c4d99c96d524ffa94be5a7626d594948fd19a",
-      "block": 59005559
+      "address": "0x35Addbac65065fBF644CD89b303bA84dDC99bDC8",
+      "txHash": "0x0461b175d44fd430ddab6ab264558321e01bff85e8487124fcfbbe351196a97c",
+      "block": 60093000,
+      "note": "Redeployed 2026-11-17 bound to reactive 0xdE254352681d843375895186a88DAF82B2930C7b (previous 0xcc58f500bff3f3e3b618d42901d4f4d5ad112667 was bound to the dead reactive 0xd961a25e...)."
     },
     "SettlementRelay": {
-      "address": "0x174000Ff3f26F7f40d683992802E1Db6394197B6",
-      "txHash": "0xcc5cee8663b2e9434873598f6994bcb08005a62c40b57fd554e46c1fd09e514b",
-      "block": 59005559,
+      "address": "0x37035ba1021FD179B0cb9fB2aAd6a60D4Fb32786",
+      "txHash": "0xb5b4b6e003b9a283a2f15a1c8316da5f78f99e469c975b0dba6f238299185c53",
+      "block": 59859102,
       "note": "Registered as ProtectionManager.executorForChain[1301] — settles Unichain-attested policies on Base."
+    }
+  },
+  "configuration": {
+    "Configure.s.sol": {
+      "txHashes": [
+        "0x757c3dd88a6f5cd4f6ab274c79cb45de5cd0357828b110eb91d8f3ad014d6aae",
+        "0xd281fb49cb8e13c79bd035cc70357989966c6021000868fa369446b9ff68aff5",
+        "0xc3764e0d2d0ad6505f1154cc0a28f8a7af1af9218cb444f6715ca21cce05151e",
+        "0x94d082d0f5948c63953ea587dbc4d72334b64bad6b11e0f3ab6835c504ff1f7b"
+      ],
+      "note": "Second Configure run set executorForChain[1301] = SettlementRelay (first run mistakenly used the Unichain executor address; corrected)."
     }
   }
 }

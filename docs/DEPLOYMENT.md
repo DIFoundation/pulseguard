@@ -1,14 +1,18 @@
 # Deployment
 
-## Current deployment (2026-11-14)
+## Current deployment (2026-11-17, post-remediation)
 
-All contracts are live. Addresses and tx hashes are in `deployments/`:
+All contracts redeployed with the remediation fixes and **verified on explorers**
+(Base Sepolia + Unichain Sepolia). Addresses and tx hashes are in `deployments/`:
 
-- `deployments/base-sepolia.json` — MockERC20, MockPriceFeed, PulseGuardVault, ProtectionManager, ProtectionExecutor
-- `deployments/unichain-sepolia.json` — CrossChainExecutor
-- `deployments/reactive-lasna.json` — PulseGuardReactive
+- `deployments/base-sepolia.json` — MockERC20 `0x9e8c…e77d`, MockPriceFeed `0x3c46…fb88`, PulseGuardVault `0x8186…35e3`, ProtectionManager `0x1a5c…1f4e`, ProtectionExecutor `0x35Ad…bDC8`, SettlementRelay `0x3703…7519`
+- `deployments/unichain-sepolia.json` — CrossChainExecutor `0xD931…F4B0`
+- `deployments/reactive-lasna.json` — PulseGuardReactive `0xdE25…0C7b` (funded 0.3 REACT at deploy — constructor subscriptions require balance)
 
 Deployer: `0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67`
+
+Configuration txs: `Configure.s.sol` on Base (manager executors + reactive + vault executor),
+`ConfigureReactive.s.sol` on Lasna (`executorForChain[84532]`/`[1301]`).
 
 The steps below are for redeployment or fresh environments.
 

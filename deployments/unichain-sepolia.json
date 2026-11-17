@@ -4,13 +4,15 @@
   "rpc": "https://sepolia.unichain.org",
   "explorer": "https://sepolia.uniscan.xyz",
   "deployed": true,
-  "deployedAt": "2026-11-15",
+  "deployedAt": "2026-11-17",
   "deployer": "0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67",
+  "verified": true,
   "contracts": {
     "CrossChainExecutor": {
-      "address": "0x76b28d8a0e95dbf90ede0cb4c709e6de30b761c0",
-      "txHash": "0x5b7190ce8a242cc57ad341e210d02412ab823713cd56ec9fd46bdbb10a35deb7",
-      "block": 67870591
+      "address": "0xD931C24199a65A7A80fc0758272bBb5e4958F4B0",
+      "txHash": "0x279df08988227750e3e81368bd2abf626883b8a75bd3bc0006fe79c010a62571",
+      "block": 68050000,
+      "note": "Redeployed 2026-11-17 bound to reactive 0xdE254352681d843375895186a88DAF82B2930C7b (previous 0xb97969c1a21133e71ed4dbb462d3e84997122985 was bound to the dead reactive 0xd961a25e...)."
     }
   }
 }

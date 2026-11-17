@@ -22,8 +22,12 @@ contract DeployReactive is Script {
             keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,uint64,bool)")
         );
 
+        // Fund at deploy: SYSTEM.subscribe in the constructor does not stick when the
+        // contract holds no REACT. Override via REACTIVE_FUNDING (wei), default 0.3 REACT.
+        uint256 funding = vm.envOr("REACTIVE_FUNDING", uint256(0.3 ether));
+
         vm.startBroadcast(deployerKey);
-        PulseGuardReactive reactive = new PulseGuardReactive{value: 0}(
+        PulseGuardReactive reactive = new PulseGuardReactive{value: funding}(
             originChainId, priceFeed, priceTopic0, manager, syncTopic0
         );
         console2.log("reactive", address(reactive));

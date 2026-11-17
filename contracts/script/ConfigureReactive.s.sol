@@ -20,7 +20,7 @@ contract ConfigureReactive is Script {
         uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
 
-        PulseGuardReactive reactive = PulseGuardReactive(vm.envAddress("REACTIVE_ADDRESS"));
+        PulseGuardReactive reactive = PulseGuardReactive(payable(vm.envAddress("REACTIVE_ADDRESS")));
         address baseExecutor = vm.envAddress("BASE_EXECUTOR");
         address uniExecutor = vm.envAddress("UNI_EXECUTOR");
 

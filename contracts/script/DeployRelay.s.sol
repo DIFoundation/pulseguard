@@ -7,8 +7,9 @@ import {SettlementRelay} from "../src/protection/SettlementRelay.sol";
 
 contract DeployRelay is Script {
     function run() external {
+        uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address manager = vm.envAddress("MANAGER_ADDRESS");
-        vm.startBroadcast();
+        vm.startBroadcast(deployerKey);
         SettlementRelay relay = new SettlementRelay(manager);
         vm.stopBroadcast();
         console.log("SettlementRelay:", address(relay));

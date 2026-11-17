@@ -70,24 +70,26 @@ Contracts redeployed after remediation: `PulseGuardReactive` `0xdE25…0C7b` (La
 
 | Step | Chain | Tx | Block | Time (UTC) |
 |---|---|---|---|---|
-| Policy created + mirror sync | Base Sepolia | [`0x7f4d82c4…c646b`](https://sepolia.basescan.org/tx/0x7f4d82c4eea1873830db63b4d83d6d8e640861f9eebb2fd4e2968edd605c646b) | — | — |
+| Policy created + mirror sync | Base Sepolia | [`0x7f4d82c4…c646b`](https://sepolia.basescan.org/tx/0x7f4d82c4eea1873830db63b4d83d6d8e640861f9eebb2fd4e2968edd605c646b) | 60087077 | 18:14:44 |
 | Policy mirrored on Lasna | Reactive Lasna | (delivered via subscription) | — | — |
-| Price published $1,730 — **trigger** | Base Sepolia | [`0x46fba7cb…f71153`](https://sepolia.basescan.org/tx/0x46fba7cb852256fd0b69a339c0a2b7e9bc653429a109d3a6d618855622f71153) | 60094042 | — |
-| `TriggerEvaluated` + `CallbackRequested` | Reactive Lasna | [`0xa686ea30…812e4`](https://lasna.reactscan.net/tx/0xa686ea306d9a2789d244b6ffa718c16d6f2dda501e50e7cac60650a0278812e4) | — | — |
-| `ProtectionExecuted` + vault `ProtectedExit` (5 tokens) | Base Sepolia | [`0xd0e53d73…22052`](https://sepolia.basescan.org/tx/0xd0e53d73c5d4198d8b11baae6d487c64bb4063705bec2c1174339a5facc22052) | ~60094250 | — |
+| Price published $1,730 — **trigger** | Base Sepolia | [`0x46fba7cb…f71153`](https://sepolia.basescan.org/tx/0x46fba7cb852256fd0b69a339c0a2b7e9bc653429a109d3a6d618855622f71153) | 60094335 | 18:38:55 |
+| `TriggerEvaluated` + `CallbackRequested` | Reactive Lasna | [`0xa686ea30…812e4`](https://lasna.reactscan.net/tx/0xa686ea306d9a2789d244b6ffa718c16d6f2dda501e50e7cac60650a0278812e4) | 8591261 | 18:38:54 |
+| `ProtectionExecuted` + vault `ProtectedExit` (5 tokens) | Base Sepolia | [`0xd0e53d73…22052`](https://sepolia.basescan.org/tx/0xd0e53d73c5d4198d8b11baae6d487c64bb4063705bec2c1174339a5facc22052) | 60094341 | 18:38:57 |
 
-Policy #3 final state: `EXECUTED`. Vault exit verified on-chain: deployer balance 905 → vault 95 → after exit deployer 910 / vault 90 (policy #4 also settled, see Run 4).
+**Latency: ~2s** from triggering `PriceUpdated` (18:38:55) to `ProtectedExit` (18:38:57). Policy #3 final state: `EXECUTED` (`executedAt` 1794940737). Vault token balance after both exits: 90 tokens (deployer EOA: 910).
 
 ### Run 4 — Unichain Sepolia destination + relay settlement (policy #4, STOP_LOSS, threshold $1,800)
 
 | Step | Chain | Tx | Block | Time (UTC) |
 |---|---|---|---|---|
-| Policy created (`destinationChainId=1301`) + mirror sync | Base Sepolia | [`0x6a7c9766…fb10e2`](https://sepolia.basescan.org/tx/0x6a7c97664b9a7e7f9a5685ed4f960582ed8d9bda77c16889f1fe0aca25fb10e2) | — | — |
+| Policy created (`destinationChainId=1301`) + mirror sync | Base Sepolia | [`0x6a7c9766…fb10e2`](https://sepolia.basescan.org/tx/0x6a7c97664b9a7e7f9a5685ed4f960582ed8d9bda77c16889f1fe0aca25fb10e2) | 60116361 | 19:52:21 |
 | Policy mirrored on Lasna | Reactive Lasna | (delivered via subscription) | — | — |
-| Price published $1,720 — **trigger** | Base Sepolia | [`0xe1864fbc…099fac`](https://sepolia.basescan.org/tx/0xe1864fbcec732d2de4de7b3bfa6c7a4fdd7fddde0617ccbe1521afa6f2099fac) | 60114458 | — |
-| `TriggerEvaluated` + `CallbackRequested` (dest 1301) | Reactive Lasna | [`0x4185bc47…88c003`](https://lasna.reactscan.net/tx/0x4185bc47716e4970216483ad1bc190f1a6b3daf82edc225e76522fcd0888c003) | — | — |
-| `CrossChainProtectionRecorded` — attestation `0x4500…6551`, `verifyAttestation → true` | Unichain Sepolia | [`0x884627e9…057c5f`](https://sepolia.uniscan.xyz/tx/0x884627e95070fba13bcde29f7ef9935697c9ed780a10b7772060ab65db057c5f) | 68093548+ | — |
-| `SettlementRelay.settle(4)` → `executePolicy` → `EXECUTED` + vault exit (5 tokens) | Base Sepolia | [`0xfdb1d5f2…cf0f7c`](https://sepolia.basescan.org/tx/0xfdb1d5f28525625a2710787832fe888b875dd348162a7358444dabadf5cf0f7c) | — | — |
+| Price published $1,720 — **trigger** | Base Sepolia | [`0xe1864fbc…099fac`](https://sepolia.basescan.org/tx/0xe1864fbcec732d2de4de7b3bfa6c7a4fdd7fddde0617ccbe1521afa6f2099fac) | 60119066 | 20:01:22 |
+| `TriggerEvaluated` + `CallbackRequested` (dest 1301) | Reactive Lasna | [`0x4185bc47…88c003`](https://lasna.reactscan.net/tx/0x4185bc47716e4970216483ad1bc190f1a6b3daf82edc225e76522fcd0888c003) | 8595908 | 20:01:21 |
+| `CrossChainProtectionRecorded` — attestation `0x4500…6551`, `verifyAttestation → true` | Unichain Sepolia | [`0x884627e9…057c5f`](https://sepolia.uniscan.xyz/tx/0x884627e95070fba13bcde29f7ef9935697c9ed780a10b7772060ab65db057c5f) | 68093256 | 20:01:24 |
+| `SettlementRelay.settle(4)` → `executePolicy` → `EXECUTED` + vault exit (5 tokens) | Base Sepolia | [`0xfdb1d5f2…cf0f7c`](https://sepolia.basescan.org/tx/0xfdb1d5f28525625a2710787832fe888b875dd348162a7358444dabadf5cf0f7c) | 60121252 | 20:08:39 |
+
+**Latency: ~3s** from triggering `PriceUpdated` (20:01:22) to on-chain attestation (20:01:24). Policy #4 final state: `EXECUTED` (`executedAt` 1794946119).
 
 **Unichain flow:** attestation on Unichain proves the trigger fired; settlement is a separate permissionless `SettlementRelay.settle(policyId)` call on Base that re-validates status/expiry/price/trigger on-chain before executing the vault exit. Policy #4 final state: `EXECUTED`.
 

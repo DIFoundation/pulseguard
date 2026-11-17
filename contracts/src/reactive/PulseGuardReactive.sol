@@ -107,8 +107,10 @@ contract PulseGuardReactive is AbstractReactive {
     // ---------- Owner: mirror management ----------
 
     /// @notice Mirror a policy locally so react() can evaluate it without cross-chain calls.
-    /// @dev Called by the PulseGuard backend/keeper after on-chain policy creation.
-    ///      The destination executor remains the authoritative validator.
+    /// @dev DEPRECATED: policy mirroring is now automatic via PolicyMirrorSync events
+    ///      delivered by the Reactive Network subscription (see _handlePolicySync).
+    ///      This owner-only path is retained for manual recovery only; the destination
+    ///      executor remains the authoritative validator.
     function mirrorPolicy(
         uint256 id,
         address monitoredAsset,
@@ -137,6 +139,10 @@ contract PulseGuardReactive is AbstractReactive {
         emit PolicyMirrored(id, monitoredAsset);
     }
 
+    /// @notice Deactivate a mirrored policy.
+    /// @dev DEPRECATED: mirror deactivation is now automatic via PolicyMirrorSync
+    ///      events (active=false) delivered by the Reactive Network subscription.
+    ///      DEPRECATED: use the automatic PolicyMirrorSync flow instead.
     function deactivateMirror(uint256 id) external onlyOwner {
         mirrorPolicies[id].active = false;
         emit PolicyMirrorRemoved(id);

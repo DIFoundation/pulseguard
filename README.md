@@ -50,7 +50,7 @@ pulseguard/
 # Contracts
 cd contracts
 forge install   # if needed
-forge test      # 35 tests
+forge test      # 49 tests
 
 # Frontend
 pnpm install
@@ -60,7 +60,7 @@ pnpm --filter web dev
 
 ## Status
 
-- ✅ Smart contracts implemented + 35 Foundry tests passing
+- ✅ Smart contracts implemented + 49 Foundry tests passing
 - ✅ Reactive Omni integration (`AbstractReactive`/`AbstractCallback`, `requestCallbackV_1_0`)
 - ✅ Deployed on Base Sepolia, Unichain Sepolia, and Reactive Lasna (2026-11-14) — see `deployments/*.json`
 - ✅ Next.js frontend: landing, dashboard, vault, policies, marketplace, simulator, activity (multi-chain, paginated, latency badges), settings

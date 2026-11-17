@@ -4,10 +4,11 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
-import { usePolicies } from "@/hooks/useContracts";
+import { usePolicies, useVault } from "@/hooks/useContracts";
 import { deployments, isConfigured, baseSepolia, unichainSepolia } from "@pulseguard/config";
 import { useAccount } from "wagmi";
 import { parseEther, parseUnits } from "viem";
+import { formatTokenAmount } from "@/lib/format";
 
 const TRIGGERS = [
   { value: 0, label: "Stop-Loss", desc: "Triggers when price falls to or below threshold — executes a protected vault exit to your recipient" },
@@ -28,6 +29,7 @@ function CreatePolicyForm() {
   const { address, isConnected } = useAccount();
   const router = useRouter();
   const { createPolicy, isPending, txHash, receipt, error } = usePolicies();
+  const { availableBalance } = useVault();
   const searchParams = useSearchParams();
 
   const initialTrigger = (() => {
@@ -70,11 +72,23 @@ function CreatePolicyForm() {
 
   const handleSubmit = () => {
     if (!address || !asset || asset === "0x") return;
-    const thresholdWei = threshold ? parseUnits(threshold, 8) : 0n;
-    const refWei = referencePrice ? parseUnits(referencePrice, 8) : 0n;
-    const drawdownBps = maxDrawdownPct ? BigInt(Math.round(parseFloat(maxDrawdownPct) * 100)) : 0n;
-    const amountWei = amount ? parseEther(amount) : 0n;
-    const expiresAt = expiresInDays ? BigInt(Math.floor(Date.now() / 1000) + Math.floor(parseFloat(expiresInDays) * 86400)) : 0n;
+    let thresholdWei: bigint, refWei: bigint, drawdownBps: bigint, amountWei: bigint, expiresAt: bigint;
+    try {
+      thresholdWei = threshold ? parseUnits(threshold, 8) : 0n;
+      refWei = referencePrice ? parseUnits(referencePrice, 8) : 0n;
+      drawdownBps = maxDrawdownPct ? BigInt(Math.round(parseFloat(maxDrawdownPct) * 100)) : 0n;
+      amountWei = amount ? parseEther(amount) : 0n;
+      expiresAt = expiresInDays ? BigInt(Math.floor(Date.now() / 1000) + Math.floor(parseFloat(expiresInDays) * 86400)) : 0n;
+    } catch {
+      return; // invalid numeric input — canSubmit guards the common cases
+    }
+    // Threshold is required for price-based triggers (SL/TP/EMG); drawdown needs ref+bps.
+    if (triggerType !== 2 && thresholdWei === 0n) return;
+    if (triggerType === 2 && (refWei === 0n || drawdownBps === 0n || drawdownBps >= 10000n)) return;
+    if (amountWei === 0n) return;
+    // Protected amount must not exceed the unreserved vault balance.
+    const avail = availableBalance.data;
+    if (avail !== undefined && avail !== null && amountWei > (avail as bigint)) return;
 
     createPolicy({
       owner: address,
@@ -92,7 +106,18 @@ function CreatePolicyForm() {
     });
   };
 
-  const canSubmit = isConnected && isConfigured("protectionManager") && amount !== "" && (triggerType !== 2 || (referencePrice !== "" && maxDrawdownPct !== ""));
+  const amountWei = (() => { try { return amount ? parseEther(amount) : 0n; } catch { return 0n; } })();
+  const availData = availableBalance.data;
+  const exceedsBalance = availData !== undefined && availData !== null && amountWei > 0n && amountWei > (availData as bigint);
+  const thresholdMissing = triggerType !== 2 && (!threshold || parseFloat(threshold) <= 0);
+  const canSubmit =
+    isConnected &&
+    isConfigured("protectionManager") &&
+    amount !== "" &&
+    amountWei > 0n &&
+    !thresholdMissing &&
+    !exceedsBalance &&
+    (triggerType !== 2 || (referencePrice !== "" && maxDrawdownPct !== ""));
 
   return (
     <div className="min-h-screen">
@@ -152,8 +177,8 @@ function CreatePolicyForm() {
               <div>
                 <label className="text-sm text-foreground/60">Destination chain</label>
                 <select value={destChain} onChange={(e) => setDestChain(Number(e.target.value) as 84532 | 1301)} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent">
-                  <option value={84532}>Base Sepolia (executes vault action)</option>
-                  <option value={1301}>Unichain Sepolia (cross-chain attestation)</option>
+                  <option value={84532}>Base Sepolia (automated vault exit)</option>
+                  <option value={1301}>Unichain Sepolia (attestation + manual settlement)</option>
                 </select>
               </div>
               <div>
@@ -169,12 +194,21 @@ function CreatePolicyForm() {
               <div className="flex justify-between"><span className="text-foreground/60">Strategy</span><span>{TRIGGERS[triggerType].label}</span></div>
               <div className="flex justify-between"><span className="text-foreground/60">Threshold</span><span>{threshold || "—"}</span></div>
               <div className="flex justify-between"><span className="text-foreground/60">Protected amount</span><span>{amount || "—"}</span></div>
-              <div className="flex justify-between"><span className="text-foreground/60">Destination</span><span>{destChain === 84532 ? "Base Sepolia" : "Unichain Sepolia"}</span></div>
+              <div className="flex justify-between"><span className="text-foreground/60">Destination</span><span>{destChain === 84532 ? "Base Sepolia (automated)" : "Unichain Sepolia (attestation + manual settle)"}</span></div>
+              {availData !== undefined && availData !== null && (
+                <div className="flex justify-between"><span className="text-foreground/60">Available balance</span><span>{formatTokenAmount(availData as bigint)}</span></div>
+              )}
             </div>
+            {exceedsBalance && (
+              <p className="mt-3 text-sm text-danger">Protected amount exceeds your available (unreserved) vault balance.</p>
+            )}
+            {thresholdMissing && (
+              <p className="mt-3 text-sm text-danger">A positive threshold price is required for this trigger.</p>
+            )}
             <p className="mt-4 text-xs text-foreground/50">
-              On trigger, Reactive Network will request an authenticated callback. The destination executor re-validates
-              the policy and performs a protected vault exit — funds transfer to your recipient (no swap/sale is executed),
-              never to an arbitrary address.
+              {destChain === 84532
+                ? "On trigger, Reactive Network requests an authenticated callback and the Base executor performs a protected vault exit automatically — funds go to your recipient, never to an arbitrary address."
+                : "On trigger, Reactive Network records a verifiable attestation on Unichain. Settlement on Base is manual: use the Settle action on the policy page after the attestation lands."}
             </p>
             <button onClick={handleSubmit} disabled={!canSubmit || isPending} className="mt-6 w-full rounded-lg bg-accent px-4 py-3 font-medium text-white disabled:opacity-50">
               {isPending ? "Creating…" : "Create Policy"}

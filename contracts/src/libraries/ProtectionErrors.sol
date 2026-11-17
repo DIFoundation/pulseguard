@@ -22,4 +22,6 @@ library ProtectionErrors {
     error InvalidPrice();
     error StalePrice();
     error Unauthorized();
+    error UnsupportedAsset();
+    error InsufficientBalance();
 }

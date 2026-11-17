@@ -51,7 +51,7 @@ contract ProtectionIntegrationTest is Test {
 
         uint256 topic0 = uint256(keccak256("PriceUpdated(address,uint256,uint256)"));
         uint256 syncTopic0 = uint256(
-            keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)")
+            keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,uint64,bool)")
         );
         reactive = new PulseGuardReactive(BASE_CHAIN, address(feed), topic0, address(manager), syncTopic0);
         reactiveAddr = address(reactive);
@@ -93,11 +93,11 @@ contract ProtectionIntegrationTest is Test {
         IReactive.LogRecord memory syncLog = IReactive.LogRecord({
             chainId: BASE_CHAIN,
             contractAddress: address(manager),
-            topic0: uint256(keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)")),
+            topic0: uint256(keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,uint64,bool)")),
             topic1: id,
             topic2: uint256(uint160(ASSET)),
             topic3: 0,
-            data: abi.encode(uint8(ProtectionTypes.TriggerType.STOP_LOSS), 1900e8, 0, 0, BASE_CHAIN, true),
+            data: abi.encode(uint8(ProtectionTypes.TriggerType.STOP_LOSS), 1900e8, 0, 0, BASE_CHAIN, uint64(0), true),
             blockNumber: 1, opCode: 3, blockHash: 0, txHash: 0xaaa, logIndex: 0
         });
         vm.prank(SYSTEM);

@@ -28,7 +28,7 @@ contract PulseGuardReactiveTest is Test {
         vm.etch(SYSTEM, address(mockSystem).code);
         uint256 topic0 = uint256(keccak256("PriceUpdated(address,uint256,uint256)"));
         uint256 syncTopic0 = uint256(
-            keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)")
+            keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,uint64,bool)")
         );
         reactive = new PulseGuardReactive(ORIGIN_CHAIN, address(feed), topic0, managerAddr, syncTopic0);
         reactive.setExecutorForChain(84532, executor);
@@ -66,7 +66,7 @@ contract PulseGuardReactiveTest is Test {
     }
 
     function testStopLossRequestsCallback() public {
-        reactive.mirrorPolicy(1, ASSET, 0, 1900e8, 0, 0, 84532);
+        reactive.mirrorPolicy(1, ASSET, 0, 1900e8, 0, 0, 84532, 0);
         IReactive.LogRecord memory log = _logRecord(1800e8, 0xabc, 0);
         vm.prank(SYSTEM);
         reactive.react(log);
@@ -77,28 +77,28 @@ contract PulseGuardReactiveTest is Test {
     }
 
     function testNoCallbackAboveThreshold() public {
-        reactive.mirrorPolicy(1, ASSET, 0, 1900e8, 0, 0, 84532);
+        reactive.mirrorPolicy(1, ASSET, 0, 1900e8, 0, 0, 84532, 0);
         IReactive.LogRecord memory log = _logRecord(2000e8, 0xdef, 0);
         vm.prank(SYSTEM);
         reactive.react(log); // price above stop-loss → no trigger
     }
 
     function testTakeProfit() public {
-        reactive.mirrorPolicy(2, ASSET, 1, 2100e8, 0, 0, 84532);
+        reactive.mirrorPolicy(2, ASSET, 1, 2100e8, 0, 0, 84532, 0);
         IReactive.LogRecord memory log = _logRecord(2200e8, 0x123, 0);
         vm.prank(SYSTEM);
         reactive.react(log);
     }
 
     function testMaxDrawdown() public {
-        reactive.mirrorPolicy(3, ASSET, 2, 0, 2000e8, 500, 84532);
+        reactive.mirrorPolicy(3, ASSET, 2, 0, 2000e8, 500, 84532, 0);
         IReactive.LogRecord memory log = _logRecord(1899e8, 0x456, 0);
         vm.prank(SYSTEM);
         reactive.react(log);
     }
 
     function testDeactivatedMirrorIgnored() public {
-        reactive.mirrorPolicy(4, ASSET, 0, 1900e8, 0, 0, 84532);
+        reactive.mirrorPolicy(4, ASSET, 0, 1900e8, 0, 0, 84532, 0);
         reactive.deactivateMirror(4);
         IReactive.LogRecord memory log = _logRecord(100e8, 0x789, 0);
         vm.prank(SYSTEM);
@@ -106,7 +106,7 @@ contract PulseGuardReactiveTest is Test {
     }
 
     function testNoExecutorNoCallback() public {
-        reactive.mirrorPolicy(5, ASSET, 0, 1900e8, 0, 0, 1301); // unichain, no executor set
+        reactive.mirrorPolicy(5, ASSET, 0, 1900e8, 0, 0, 1301, 0); // unichain, no executor set
         IReactive.LogRecord memory log = _logRecord(100e8, 0x999, 0);
         vm.prank(SYSTEM);
         reactive.react(log); // should not revert
@@ -122,17 +122,18 @@ contract PulseGuardReactiveTest is Test {
         uint256 referencePrice,
         uint256 maxDrawdownBps,
         uint256 destChainId,
+        uint64 expiresAt,
         bool active,
         uint256 txHashSeed
     ) internal view returns (IReactive.LogRecord memory) {
         return IReactive.LogRecord({
             chainId: ORIGIN_CHAIN,
             contractAddress: managerAddr,
-            topic0: uint256(keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)")),
+            topic0: uint256(keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,uint64,bool)")),
             topic1: id,
             topic2: uint256(uint160(asset)),
             topic3: 0,
-            data: abi.encode(triggerType, threshold, referencePrice, maxDrawdownBps, destChainId, active),
+            data: abi.encode(triggerType, threshold, referencePrice, maxDrawdownBps, destChainId, expiresAt, active),
             blockNumber: 1,
             opCode: 3,
             blockHash: 0,
@@ -143,11 +144,11 @@ contract PulseGuardReactiveTest is Test {
 
     function testAutoMirrorCreateThenTrigger() public {
         // Simulate PolicyMirrorSync(active=true) for a stop-loss policy
-        IReactive.LogRecord memory sync = _syncLog(10, ASSET, 0, 1900e8, 0, 0, 84532, true, 0xaaa);
+        IReactive.LogRecord memory sync = _syncLog(10, ASSET, 0, 1900e8, 0, 0, 84532, 0, true, 0xaaa);
         vm.prank(SYSTEM);
         reactive.react(sync);
 
-        (uint256 id,,,,,, uint256 destChainId, bool active) = reactive.mirrorPolicies(10);
+        (uint256 id,,,,,, uint256 destChainId, , bool active) = reactive.mirrorPolicies(10);
         assertEq(id, 10);
         assertEq(destChainId, 84532);
         assertTrue(active);
@@ -159,30 +160,49 @@ contract PulseGuardReactiveTest is Test {
     }
 
     function testAutoMirrorDeactivateStopsTrigger() public {
-        IReactive.LogRecord memory syncOn = _syncLog(11, ASSET, 0, 1900e8, 0, 0, 84532, true, 0xccc);
+        IReactive.LogRecord memory syncOn = _syncLog(11, ASSET, 0, 1900e8, 0, 0, 84532, 0, true, 0xccc);
         vm.prank(SYSTEM);
         reactive.react(syncOn);
 
-        IReactive.LogRecord memory syncOff = _syncLog(11, ASSET, 0, 1900e8, 0, 0, 84532, false, 0xddd);
+        IReactive.LogRecord memory syncOff = _syncLog(11, ASSET, 0, 1900e8, 0, 0, 84532, 0, false, 0xddd);
         vm.prank(SYSTEM);
         reactive.react(syncOff);
 
-        (, , , , , , , bool active) = reactive.mirrorPolicies(11);
+        (, , , , , , , , bool active) = reactive.mirrorPolicies(11);
         assertFalse(active);
     }
 
     function testAutoMirrorReactivation() public {
-        IReactive.LogRecord memory syncOn = _syncLog(12, ASSET, 1, 2100e8, 0, 0, 84532, true, 0xeee);
+        IReactive.LogRecord memory syncOn = _syncLog(12, ASSET, 1, 2100e8, 0, 0, 84532, 0, true, 0xeee);
         vm.prank(SYSTEM);
         reactive.react(syncOn);
-        IReactive.LogRecord memory syncOff = _syncLog(12, ASSET, 1, 2100e8, 0, 0, 84532, false, 0xfff);
+        IReactive.LogRecord memory syncOff = _syncLog(12, ASSET, 1, 2100e8, 0, 0, 84532, 0, false, 0xfff);
         vm.prank(SYSTEM);
         reactive.react(syncOff);
-        IReactive.LogRecord memory syncOn2 = _syncLog(12, ASSET, 1, 2100e8, 0, 0, 84532, true, 0x1000);
+        IReactive.LogRecord memory syncOn2 = _syncLog(12, ASSET, 1, 2100e8, 0, 0, 84532, 0, true, 0x1000);
         vm.prank(SYSTEM);
         reactive.react(syncOn2);
 
-        (, , , , , , , bool active) = reactive.mirrorPolicies(12);
+        (, , , , , , , , bool active) = reactive.mirrorPolicies(12);
+        assertTrue(active);
+    }
+
+    function testExpiredMirrorDoesNotTrigger() public {
+        // Mirror a policy that expires at t=100; warp past it, then a triggering
+        // price must NOT request a callback.
+        reactive.mirrorPolicy(20, ASSET, 0, 1900e8, 0, 0, 84532, 100);
+        vm.warp(200);
+        IReactive.LogRecord memory log = _logRecord(100e8, 0xdead, 0);
+        vm.prank(SYSTEM);
+        reactive.react(log); // no revert, no callback
+    }
+
+    function testSyncWithExpiresAtStored() public {
+        IReactive.LogRecord memory sync = _syncLog(21, ASSET, 0, 1900e8, 0, 0, 84532, 500, true, 0xbeef);
+        vm.prank(SYSTEM);
+        reactive.react(sync);
+        (, , , , , , , uint64 expiresAt, bool active) = reactive.mirrorPolicies(21);
+        assertEq(expiresAt, 500);
         assertTrue(active);
     }
 }

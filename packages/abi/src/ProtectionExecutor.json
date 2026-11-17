@@ -140,6 +140,31 @@
     "anonymous": false
   },
   {
+    "type": "event",
+    "name": "ProtectionNotExecuted",
+    "inputs": [
+      {
+        "name": "policyId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "reactive",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "outcome",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum ProtectionTypes.ExecutionOutcome"
+      }
+    ],
+    "anonymous": false
+  },
+  {
     "type": "error",
     "name": "CallbackNotAuthorized",
     "inputs": [

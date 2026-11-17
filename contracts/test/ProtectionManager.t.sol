@@ -41,6 +41,13 @@ contract ProtectionManagerTest is Test {
         manager.setReactiveContract(reactive);
         vault.setExecutor(address(manager));
         vm.stopPrank();
+
+        // Fund the user so policies can reserve protected amounts.
+        token.mint(user, 1000 ether);
+        vm.prank(user);
+        token.approve(address(vault), type(uint256).max);
+        vm.prank(user);
+        vault.deposit(1000 ether);
     }
 
     function _policy(ProtectionTypes.TriggerType tt, uint256 threshold) internal view returns (ProtectionTypes.Policy memory) {
@@ -78,6 +85,96 @@ contract ProtectionManagerTest is Test {
         manager.createPolicy(p);
     }
 
+    function testCreatePolicyRejectsUnsupportedAsset() public {
+        ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p.asset = makeAddr("otherToken");
+        vm.prank(user);
+        vm.expectRevert(ProtectionErrors.UnsupportedAsset.selector);
+        manager.createPolicy(p);
+    }
+
+    function testCreatePolicyRejectsUnfundedAmount() public {
+        ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p.protectedAmount = 2000 ether; // user only deposited 1000
+        vm.prank(user);
+        vm.expectRevert(ProtectionErrors.InsufficientBalance.selector);
+        manager.createPolicy(p);
+    }
+
+    function testReservationBlocksExcessWithdraw() public {
+        vm.prank(user);
+        uint256 id = manager.createPolicy(_policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8));
+        assertEq(vault.reservedBalances(user), 10 ether);
+        assertEq(vault.availableBalance(user), 990 ether);
+
+        vm.prank(user);
+        vm.expectRevert(PulseGuardVault.InsufficientBalance.selector);
+        vault.withdraw(991 ether);
+
+        vm.prank(user);
+        vault.withdraw(990 ether);
+        assertEq(vault.balances(user), 10 ether); // 1000 deposited - 990 withdrawn
+
+        // Balance (10) is fully covered by the reservation (10) → nothing available.
+        assertEq(vault.availableBalance(user), 0);
+        vm.prank(user);
+        manager.cancelPolicy(id); // releases reservation without underflow
+        assertEq(vault.reservedBalances(user), 0);
+    }
+
+    function testOverlappingPoliciesCannotExceedBalance() public {
+        ProtectionTypes.Policy memory p1 = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p1.protectedAmount = 600 ether;
+        vm.prank(user);
+        manager.createPolicy(p1);
+
+        ProtectionTypes.Policy memory p2 = _policy(ProtectionTypes.TriggerType.TAKE_PROFIT, 2100e8);
+        p2.protectedAmount = 600 ether; // 600 + 600 > 1000 deposited
+        vm.prank(user);
+        vm.expectRevert(ProtectionErrors.InsufficientBalance.selector);
+        manager.createPolicy(p2);
+    }
+
+    function testCancelReleasesReservation() public {
+        vm.prank(user);
+        uint256 id = manager.createPolicy(_policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8));
+        assertEq(vault.reservedBalances(user), 10 ether);
+        vm.prank(user);
+        manager.cancelPolicy(id);
+        assertEq(vault.reservedBalances(user), 0);
+        assertEq(vault.availableBalance(user), 1000 ether);
+    }
+
+    function testExecuteReleasesReservation() public {
+        vm.prank(user);
+        uint256 id = manager.createPolicy(_policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8));
+        vm.prank(operator);
+        feed.updatePrice(ASSET, 1800e8);
+        vm.prank(executor);
+        assertEq(uint8(manager.executePolicy(id)), uint8(ProtectionTypes.ExecutionOutcome.EXECUTED));
+        assertEq(vault.reservedBalances(user), 0);
+        assertEq(vault.balances(user), 990 ether);
+    }
+
+    function testCancelExpiredPolicyReverts() public {
+        vm.warp(100);
+        ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p.expiresAt = 50;
+        vm.prank(user);
+        uint256 id = manager.createPolicy(p);
+
+        vm.prank(operator);
+        feed.updatePrice(ASSET, 100e8);
+        vm.prank(executor);
+        assertEq(uint8(manager.executePolicy(id)), uint8(ProtectionTypes.ExecutionOutcome.EXPIRED));
+        assertEq(vault.reservedBalances(user), 0); // released on expiry
+
+        // Cancelling a terminal (EXPIRED) policy must revert — no double decrement.
+        vm.prank(user);
+        vm.expectRevert(ProtectionErrors.InvalidStatusTransition.selector);
+        manager.cancelPolicy(id);
+    }
+
     function testStopLossTriggerAndExecute() public {
         vm.prank(user);
         uint256 id = manager.createPolicy(_policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8));
@@ -107,7 +204,7 @@ contract ProtectionManagerTest is Test {
         vm.prank(executor);
         manager.executePolicy(id);
         assertEq(token.balanceOf(recipient), 10 ether);
-        assertEq(vault.balances(user), 90 ether);
+        assertEq(vault.balances(user), 1090 ether); // 1000 (setUp) + 100 (test) - 10 exit
 
         // second execution reverts (no repeat)
         vm.prank(executor);
@@ -179,9 +276,10 @@ contract ProtectionManagerTest is Test {
         vm.prank(operator);
         feed.updatePrice(ASSET, 100e8); // trigger condition met, but expired
         vm.prank(executor);
-        manager.executePolicy(id); // must NOT revert — marks EXPIRED and returns
+        assertEq(uint8(manager.executePolicy(id)), uint8(ProtectionTypes.ExecutionOutcome.EXPIRED));
 
         assertEq(uint8(manager.getPolicy(id).status), uint8(ProtectionTypes.PolicyStatus.EXPIRED));
+        assertEq(vault.reservedBalances(user), 0);
 
         // Second call reverts: no longer ACTIVE
         vm.prank(executor);

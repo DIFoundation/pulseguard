@@ -58,22 +58,35 @@ DEPLOYER_PRIVATE_KEY=0x... \
 forge script script/DeployExecutor.s.sol:DeployExecutor \
   --rpc-url $UNICHAIN_RPC --broadcast
 
-# 5. Base Sepolia: wire everything
+# 5. Base Sepolia: wire manager + vault
 MANAGER_ADDRESS=0x<manager> VAULT_ADDRESS=0x<vault> \
 BASE_EXECUTOR=0x<baseExecutor> UNI_EXECUTOR=0x<uniExecutor> \
 REACTIVE_ADDRESS=0x<reactive> \
 DEPLOYER_PRIVATE_KEY=0x... \
 forge script script/Configure.s.sol:Configure \
   --rpc-url $BASE_RPC --broadcast
+
+# 6. Reactive Lasna: register destination executors on the reactive contract.
+#    PulseGuardReactive keeps its OWN executorForChain mapping (separate from
+#    ProtectionManager's) — without this step react() skips callback requests.
+REACTIVE_ADDRESS=0x<reactive> \
+DEPLOYER_PRIVATE_KEY=0x... \
+forge script script/ConfigureReactive.s.sol:ConfigureReactive \
+  --rpc-url $LASNA_RPC --broadcast
 ```
 
 ## Post-deploy
 
-1. Record addresses in `deployments/*.json`.
+1. Record addresses in `deployments/*.json` **and the configuration tx hashes**
+   (Configure on Base, ConfigureReactive on Lasna) so the wiring is auditable.
 2. Set `NEXT_PUBLIC_*` env vars in `apps/web/.env.local`.
 3. Fund reactive contract (REACT on Lasna) and executors (native token).
-4. Policies auto-mirror on Lasna via `PolicyMirrorSync` events — no manual `mirrorPolicy` calls needed (owner override still available).
-5. Run the demo flow in `docs/DEMO_SCRIPT.md`.
+4. Verify executor mappings on both contracts:
+   - `cast call $MANAGER "executorForChain(uint256)(address)" 84532 --rpc-url $BASE_RPC`
+   - `cast call $REACTIVE "executorForChain(uint256)(address)" 84532 --rpc-url $LASNA_RPC`
+   - `cast call $REACTIVE "executorForChain(uint256)(address)" 1301 --rpc-url $LASNA_RPC`
+5. Policies auto-mirror on Lasna via `PolicyMirrorSync` events — no manual `mirrorPolicy` calls needed (owner override still available).
+6. Run the demo flow in `docs/DEMO_SCRIPT.md`.
 
 ## Verification
 

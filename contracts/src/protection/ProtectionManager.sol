@@ -49,6 +49,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
     /// @notice Full policy snapshot for Reactive mirror synchronization.
     /// @dev Consumed by PulseGuardReactive on Lasna via event subscription.
     ///      `active` is true on create/activate, false on deactivate/cancel/execute.
+    ///      `expiresAt` lets the mirror skip policies that can no longer trigger.
     event PolicyMirrorSync(
         uint256 indexed id,
         address indexed monitoredAsset,
@@ -57,6 +58,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         uint256 referencePrice,
         uint256 maxDrawdownBps,
         uint256 destinationChainId,
+        uint64 expiresAt,
         bool active
     );
     event ExecutorForChainSet(uint256 indexed chainId, address executor);
@@ -86,14 +88,19 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
 
     // ---------- Policy lifecycle (user-facing) ----------
 
-    function createPolicy(ProtectionTypes.Policy memory p) external whenNotPaused returns (uint256 id) {
+    function createPolicy(ProtectionTypes.Policy memory p) external whenNotPaused nonReentrant returns (uint256 id) {
         if (p.owner != msg.sender) revert ProtectionErrors.NotOwner();
         if (p.asset == address(0) || p.monitoredAsset == address(0)) revert ProtectionErrors.InvalidAsset();
+        // Only the vault's supported asset can be protected — a policy on any other
+        // asset could never fulfil its promised protected exit.
+        if (p.asset != address(vault.asset())) revert ProtectionErrors.UnsupportedAsset();
         if (p.recipient == address(0)) revert ProtectionErrors.InvalidRecipient();
         if (p.protectedAmount == 0) revert ProtectionErrors.InvalidAmount();
         if (p.destinationChainId == 0) revert ProtectionErrors.UnsupportedChain();
         if (executorForChain[p.destinationChainId] == address(0)) revert ProtectionErrors.UnsupportedChain();
         _validateTrigger(p);
+        // The protected amount must be backed by the owner's unreserved vault balance.
+        if (vault.availableBalance(p.owner) < p.protectedAmount) revert ProtectionErrors.InsufficientBalance();
 
         id = nextPolicyId++;
         p.id = id;
@@ -105,6 +112,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
             revert PolicyLimitReached();
         }
         _livePolicyCount[p.monitoredAsset]++;
+        vault.reserve(p.owner, p.protectedAmount);
         emit PolicyCreated(id, msg.sender, p.asset, uint8(p.triggerType));
         emit PolicyActivated(id);
         _emitMirrorSync(p, true);
@@ -132,11 +140,14 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
     function cancelPolicy(uint256 id) external {
         ProtectionTypes.Policy storage p = policies[id];
         if (p.owner != msg.sender) revert ProtectionErrors.NotOwner();
-        if (p.status == ProtectionTypes.PolicyStatus.EXECUTED || p.status == ProtectionTypes.PolicyStatus.CANCELLED) {
+        if (p.status == ProtectionTypes.PolicyStatus.EXECUTED
+            || p.status == ProtectionTypes.PolicyStatus.CANCELLED
+            || p.status == ProtectionTypes.PolicyStatus.EXPIRED) {
             revert ProtectionErrors.InvalidStatusTransition();
         }
         p.status = ProtectionTypes.PolicyStatus.CANCELLED;
         _livePolicyCount[p.monitoredAsset]--;
+        vault.release(p.owner, p.protectedAmount);
         emit PolicyCancelled(id);
         _emitMirrorSync(p, false);
     }
@@ -178,7 +189,9 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
 
     /// @notice Execute a triggered policy. Re-validates trigger against the live feed price.
     /// @dev Only callable by the executor registered for the policy's destination chain.
-    function executePolicy(uint256 id) external nonReentrant whenNotPaused {
+    ///      Returns EXPIRED (without reverting) when the policy is past expiresAt so the
+    ///      caller can avoid emitting a false success event.
+    function executePolicy(uint256 id) external nonReentrant whenNotPaused returns (ProtectionTypes.ExecutionOutcome) {
         ProtectionTypes.Policy storage p = policies[id];
         if (p.id == 0) revert ProtectionErrors.PolicyNotFound();
         if (executorForChain[p.destinationChainId] != msg.sender) revert ProtectionErrors.NotExecutor();
@@ -187,9 +200,10 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
             // Persist the expiry transition — a revert here would roll it back.
             p.status = ProtectionTypes.PolicyStatus.EXPIRED;
             _livePolicyCount[p.monitoredAsset]--;
+            vault.release(p.owner, p.protectedAmount);
             emit PolicyExpired(id);
             _emitMirrorSync(p, false);
-            return;
+            return ProtectionTypes.ExecutionOutcome.EXPIRED;
         }
 
         (uint256 price, uint256 priceTimestamp) = priceFeed.latestPrice(p.monitoredAsset);
@@ -203,15 +217,13 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         p.executedAt = uint64(block.timestamp);
         _livePolicyCount[p.monitoredAsset]--;
 
-        // Move protected funds from vault to the policy recipient.
-        if (p.asset == address(vault.asset())) {
-            vault.protectedExit(p.owner, p.recipient, p.protectedAmount);
-        } else {
-            // Non-vault asset: pull from owner's approved balance is out of scope;
-            // mark executed and emit — documented limitation for multi-asset vaults.
-        }
+        // Release this policy's reservation, then move protected funds to the recipient.
+        // createPolicy guarantees p.asset == vault.asset(), so the exit always executes.
+        vault.release(p.owner, p.protectedAmount);
+        vault.protectedExit(p.owner, p.recipient, p.protectedAmount);
         emit PolicyExecuted(id, msg.sender);
         _emitMirrorSync(p, false);
+        return ProtectionTypes.ExecutionOutcome.EXECUTED;
     }
 
     // ---------- Views ----------
@@ -243,6 +255,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
             p.referencePrice,
             p.maxDrawdownBps,
             p.destinationChainId,
+            p.expiresAt,
             active
         );
     }

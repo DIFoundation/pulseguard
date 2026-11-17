@@ -24,6 +24,13 @@ library ProtectionTypes {
         PROTECTED_EXIT // move protectedAmount of asset to recipient via vault
     }
 
+    /// @notice Result of ProtectionManager.executePolicy — lets executors avoid
+    ///         emitting success events for no-op paths (e.g. expired policies).
+    enum ExecutionOutcome {
+        EXECUTED, // funds actually moved via protected exit
+        EXPIRED // policy was past expiresAt; marked EXPIRED, no funds moved
+    }
+
     struct Policy {
         uint256 id;
         address owner;

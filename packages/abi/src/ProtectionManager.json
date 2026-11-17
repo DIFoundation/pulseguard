@@ -233,7 +233,13 @@
         "internalType": "uint256"
       }
     ],
-    "outputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum ProtectionTypes.ExecutionOutcome"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -846,6 +852,12 @@
         "internalType": "uint256"
       },
       {
+        "name": "expiresAt",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
         "name": "active",
         "type": "bool",
         "indexed": false,
@@ -888,6 +900,11 @@
   {
     "type": "error",
     "name": "ExpectedPause",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InsufficientBalance",
     "inputs": []
   },
   {
@@ -990,6 +1007,11 @@
   {
     "type": "error",
     "name": "Unauthorized",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnsupportedAsset",
     "inputs": []
   },
   {

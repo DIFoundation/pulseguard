@@ -27,7 +27,12 @@ interface ActivityEvent {
   eventName: string;
   summary: string;
   policyId?: string;
-  latencySeconds?: number;
+  logIndex?: string;
+  /** `${txHash}:${logIndex}` of the originating PriceUpdated log, when known. */
+  originKey?: string;
+  latencyOriginToReactive?: number;
+  latencyReactiveToDest?: number;
+  latencyTotal?: number;
 }
 
 interface Source {
@@ -74,6 +79,10 @@ const TRIGGER_NAMES = ["STOP_LOSS", "TAKE_PROFIT", "MAX_DRAWDOWN", "EMERGENCY"];
 
 const EXECUTION_EVENTS = new Set(["ProtectionExecuted", "CrossChainProtectionRecorded", "ProtectedExit"]);
 
+function fmtLatency(seconds: number): string {
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
 function summarize(eventName: string, args: Record<string, unknown>): string {
   switch (eventName) {
     case "PriceUpdated":
@@ -113,6 +122,30 @@ interface NormalizedLog {
   logIndex: string;
   topics: string[];
   data: string;
+}
+
+/**
+ * Build the `${txHash}:${logIndex}` correlation key for an event.
+ * - PriceUpdated: its own log coordinates (it IS the origin event).
+ * - TriggerEvaluated / CallbackRequested: the origin PriceUpdated coordinates
+ *   carried in the originTxHash (uint256) / originLogIndex args.
+ */
+function originKeyFor(
+  eventName: string,
+  args: Record<string, unknown>,
+  log: NormalizedLog
+): string | undefined {
+  if (eventName === "PriceUpdated") {
+    return `${log.transactionHash}:${log.logIndex}`;
+  }
+  if (eventName === "TriggerEvaluated" || eventName === "CallbackRequested") {
+    const rawTx = args.originTxHash;
+    const rawIdx = args.originLogIndex;
+    if (rawTx === undefined || rawTx === null || rawIdx === undefined || rawIdx === null) return undefined;
+    const txHash = `0x${BigInt(rawTx as bigint | number | string).toString(16).padStart(64, "0")}` as `0x${string}`;
+    return `${txHash}:${String(rawIdx)}`;
+  }
+  return undefined;
 }
 
 async function fetchChainLogs(chainKey: string, address: string): Promise<NormalizedLog[]> {
@@ -176,6 +209,8 @@ export default function ActivityPage() {
                   eventName,
                   summary: summarize(eventName, args),
                   policyId: args.policyId !== undefined ? String(args.policyId) : args.id !== undefined ? String(args.id) : undefined,
+                  logIndex: log.logIndex,
+                  originKey: originKeyFor(eventName, args, log),
                 });
               } catch {
                 // log from an event not in this ABI — skip
@@ -211,6 +246,8 @@ export default function ActivityPage() {
                   eventName,
                   summary: summarize(eventName, args),
                   policyId: args.policyId !== undefined ? String(args.policyId) : args.id !== undefined ? String(args.id) : undefined,
+                  logIndex: log.logIndex,
+                  originKey: originKeyFor(eventName, args, log),
                 });
               } catch {
                 // log from an event not in this ABI — skip
@@ -269,17 +306,29 @@ export default function ActivityPage() {
           e.timestamp = tsByBlock.get(`${e.chain}:${e.blockNumber}`);
         }
 
-        // Correlate each execution event to its originating PriceUpdated:
-        // anchor = the policy's CallbackRequested timestamp on Lasna (the react() tx
-        // that consumed the price event), then take the latest PriceUpdated before it.
+        // Correlate executions to their originating PriceUpdated via the
+        // originTxHash/originLogIndex carried by TriggerEvaluated/CallbackRequested.
+        // Fallback for pre-upgrade events: latest PriceUpdated before the callback.
+        const priceByOriginKey = new Map<string, ActivityEvent>();
         const priceEvents = collected
           .filter((e) => e.eventName === "PriceUpdated" && e.timestamp !== undefined)
           .sort((a, b) => Number(a.timestamp! - b.timestamp!));
+        for (const p of priceEvents) {
+          if (p.txHash && p.logIndex !== undefined) {
+            priceByOriginKey.set(`${p.txHash}:${p.logIndex}`, p);
+          }
+        }
 
-        const callbackTsByPolicy = new Map<string, bigint>();
+        // policyId -> { callback event, origin price event }
+        const callbackByPolicy = new Map<string, { cb: ActivityEvent; price?: ActivityEvent }>();
         for (const e of collected) {
-          if (e.eventName === "CallbackRequested" && e.policyId && e.timestamp !== undefined) {
-            callbackTsByPolicy.set(e.policyId, e.timestamp);
+          if ((e.eventName === "CallbackRequested" || e.eventName === "TriggerEvaluated") && e.policyId) {
+            const price = e.originKey ? priceByOriginKey.get(e.originKey) : undefined;
+            const existing = callbackByPolicy.get(e.policyId);
+            // Prefer CallbackRequested (later stage) over TriggerEvaluated.
+            if (!existing || e.eventName === "CallbackRequested") {
+              callbackByPolicy.set(e.policyId, { cb: e, price });
+            }
           }
         }
 
@@ -292,10 +341,31 @@ export default function ActivityPage() {
           }
         }
 
+        const setLatencies = (e: ActivityEvent, price?: ActivityEvent, cb?: ActivityEvent) => {
+          if (e.timestamp === undefined) return;
+          const priceTs = price?.timestamp;
+          const cbTs = cb?.timestamp;
+          if (priceTs !== undefined && cbTs !== undefined && cbTs >= priceTs) {
+            e.latencyOriginToReactive = Number(cbTs - priceTs);
+          }
+          if (cbTs !== undefined && e.timestamp >= cbTs) {
+            e.latencyReactiveToDest = Number(e.timestamp - cbTs);
+          }
+          if (priceTs !== undefined && e.timestamp >= priceTs) {
+            e.latencyTotal = Number(e.timestamp - priceTs);
+          }
+        };
+
         for (const e of collected) {
           if (!EXECUTION_EVENTS.has(e.eventName) || e.timestamp === undefined) continue;
           const pid = e.policyId ?? policyByTx.get(e.txHash);
-          const anchor = (pid ? callbackTsByPolicy.get(pid) : undefined) ?? e.timestamp;
+          const linked = pid ? callbackByPolicy.get(pid) : undefined;
+          if (linked?.price) {
+            setLatencies(e, linked.price, linked.cb);
+            continue;
+          }
+          // Fallback: latest PriceUpdated before the callback timestamp (legacy events).
+          const anchor = linked?.cb.timestamp ?? e.timestamp;
           let priceTs: bigint | undefined;
           for (const p of priceEvents) {
             if (p.timestamp! <= anchor) priceTs = p.timestamp;
@@ -303,7 +373,7 @@ export default function ActivityPage() {
           }
           if (priceTs !== undefined) {
             const delta = Number(e.timestamp - priceTs);
-            if (delta >= 0 && delta < 86400) e.latencySeconds = delta;
+            if (delta >= 0 && delta < 86400) e.latencyTotal = delta;
           }
         }
 
@@ -414,9 +484,19 @@ export default function ActivityPage() {
                         </td>
                         <td className="py-2 pr-4 font-mono text-xs">
                           {e.eventName}
-                          {e.latencySeconds !== undefined && (
-                            <span className="ml-2 rounded bg-accent/10 px-1.5 py-0.5 font-sans text-[10px] text-accent">
-                              ⚡ {e.latencySeconds < 60 ? `${e.latencySeconds}s` : `${Math.floor(e.latencySeconds / 60)}m ${e.latencySeconds % 60}s`}
+                          {e.latencyTotal !== undefined && (
+                            <span
+                              className="ml-2 rounded bg-accent/10 px-1.5 py-0.5 font-sans text-[10px] text-accent"
+                              title={
+                                e.latencyOriginToReactive !== undefined || e.latencyReactiveToDest !== undefined
+                                  ? `origin→Reactive: ${e.latencyOriginToReactive ?? "—"}s · Reactive→dest: ${e.latencyReactiveToDest ?? "—"}s`
+                                  : undefined
+                              }
+                            >
+                              ⚡ {fmtLatency(e.latencyTotal)} total
+                              {e.latencyOriginToReactive !== undefined && (
+                                <span className="ml-1 opacity-70">({fmtLatency(e.latencyOriginToReactive)}+{fmtLatency(e.latencyReactiveToDest ?? 0)})</span>
+                              )}
                             </span>
                           )}
                         </td>

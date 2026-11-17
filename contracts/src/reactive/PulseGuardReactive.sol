@@ -32,6 +32,7 @@ contract PulseGuardReactive is AbstractReactive {
         uint256 referencePrice;
         uint256 maxDrawdownBps;
         uint256 destinationChainId;
+        uint64 expiresAt;
         bool active;
     }
 
@@ -50,8 +51,16 @@ contract PulseGuardReactive is AbstractReactive {
 
     event PolicyMirrored(uint256 indexed id, address monitoredAsset);
     event PolicyMirrorRemoved(uint256 indexed id);
-    event TriggerEvaluated(uint256 indexed policyId, uint256 price);
-    event CallbackRequested(uint256 indexed policyId, uint256 destinationChainId, address recipient);
+    /// @notice `originTxHash`/`originLogIndex` identify the exact PriceUpdated log
+    ///         that triggered evaluation — enables precise latency correlation.
+    event TriggerEvaluated(uint256 indexed policyId, uint256 price, uint256 originTxHash, uint256 originLogIndex);
+    event CallbackRequested(
+        uint256 indexed policyId,
+        uint256 destinationChainId,
+        address recipient,
+        uint256 originTxHash,
+        uint256 originLogIndex
+    );
     event IrrelevantEvent(uint256 chainId, address contractAddress, uint256 topic0);
 
     error NotOwner();
@@ -66,7 +75,7 @@ contract PulseGuardReactive is AbstractReactive {
     /// @param priceFeed_           origin-chain feed contract to subscribe to
     /// @param priceTopic0_         topic0 of PriceUpdated(address,uint256,uint256)
     /// @param manager_             origin-chain ProtectionManager (mirror sync source)
-    /// @param policySyncTopic0_    topic0 of PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)
+    /// @param policySyncTopic0_    topic0 of PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,uint64,bool)
     constructor(
         uint256 originChainId_,
         address priceFeed_,
@@ -107,7 +116,8 @@ contract PulseGuardReactive is AbstractReactive {
         uint256 threshold,
         uint256 referencePrice,
         uint256 maxDrawdownBps,
-        uint256 destinationChainId
+        uint256 destinationChainId,
+        uint64 expiresAt
     ) external onlyOwner {
         mirrorPolicies[id] = MirrorPolicy({
             id: id,
@@ -117,6 +127,7 @@ contract PulseGuardReactive is AbstractReactive {
             referencePrice: referencePrice,
             maxDrawdownBps: maxDrawdownBps,
             destinationChainId: destinationChainId,
+            expiresAt: expiresAt,
             active: true
         });
         if (!_mirrorIndexed[id]) {
@@ -175,16 +186,16 @@ contract PulseGuardReactive is AbstractReactive {
             if (_callbackRequested[dedup]) continue;
             _callbackRequested[dedup] = true;
 
-            emit TriggerEvaluated(id, price);
+            emit TriggerEvaluated(id, price, log_.txHash, log_.logIndex);
             _requestCallback(mp, id, price, log_);
         }
     }
 
     /// @dev PolicyMirrorSync(uint256 indexed id, address indexed monitoredAsset,
     ///      uint8 triggerType, uint256 threshold, uint256 referencePrice,
-    ///      uint256 maxDrawdownBps, uint256 destinationChainId, bool active)
+    ///      uint256 maxDrawdownBps, uint256 destinationChainId, uint64 expiresAt, bool active)
     ///      opCode == 3 (topic0 + 2 indexed); data = abi.encode(triggerType, threshold,
-    ///      referencePrice, maxDrawdownBps, destinationChainId, active)
+    ///      referencePrice, maxDrawdownBps, destinationChainId, expiresAt, active)
     function _handlePolicySync(LogRecord memory log_) internal {
         if (log_.opCode != 3) return;
 
@@ -196,8 +207,9 @@ contract PulseGuardReactive is AbstractReactive {
             uint256 referencePrice,
             uint256 maxDrawdownBps,
             uint256 destinationChainId,
+            uint64 expiresAt,
             bool active
-        ) = abi.decode(log_.data, (uint8, uint256, uint256, uint256, uint256, bool));
+        ) = abi.decode(log_.data, (uint8, uint256, uint256, uint256, uint256, uint64, bool));
 
         MirrorPolicy storage mp = mirrorPolicies[id];
         mp.id = id;
@@ -208,6 +220,7 @@ contract PulseGuardReactive is AbstractReactive {
             mp.referencePrice = referencePrice;
             mp.maxDrawdownBps = maxDrawdownBps;
             mp.destinationChainId = destinationChainId;
+            mp.expiresAt = expiresAt;
             mp.active = true;
             if (!_mirrorIndexed[id]) {
                 _mirrorIndexed[id] = true;
@@ -221,6 +234,7 @@ contract PulseGuardReactive is AbstractReactive {
     }
 
     function _isTriggered(MirrorPolicy storage mp, uint256 price) internal view returns (bool) {
+        if (mp.expiresAt != 0 && block.timestamp > mp.expiresAt) return false;
         if (mp.triggerType == 0) return price <= mp.threshold; // STOP_LOSS
         if (mp.triggerType == 1) return price >= mp.threshold; // TAKE_PROFIT
         if (mp.triggerType == 3) return price <= mp.threshold; // EMERGENCY
@@ -252,7 +266,7 @@ contract PulseGuardReactive is AbstractReactive {
                 payload: payload
             })
         );
-        emit CallbackRequested(id, mp.destinationChainId, recipient);
+        emit CallbackRequested(id, mp.destinationChainId, recipient, log_.txHash, log_.logIndex);
     }
 
     // ---------- Per-chain executor registry ----------

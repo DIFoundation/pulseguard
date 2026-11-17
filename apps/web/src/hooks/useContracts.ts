@@ -28,11 +28,21 @@ export function useVault() {
     query: { enabled: isConfigured("vault"), refetchInterval: 5000 },
   });
 
+  const availableBalance = useReadContract({
+    abi: PulseGuardVaultAbi,
+    address: isConfigured("vault") ? vaultAddr : undefined,
+    functionName: "availableBalance",
+    args: address ? [address] : undefined,
+    chainId: baseSepolia.id,
+    query: { enabled: !!address && isConfigured("vault"), refetchInterval: 5000 },
+  });
+
   const { writeContract, writeContractAsync, data: txHash, isPending, error } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash: txHash });
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
   const [flowStep, setFlowStep] = useState<"idle" | "approving" | "depositing">("idle");
   const [flowHash, setFlowHash] = useState<`0x${string}` | undefined>();
+  const [flowError, setFlowError] = useState<string | undefined>();
   const flowReceipt = useWaitForTransactionReceipt({ hash: flowHash });
 
   const allowance = useReadContract({
@@ -45,8 +55,10 @@ export function useVault() {
   });
 
   /// @dev Two-step deposit: approve the vault for the asset if needed, then deposit.
+  ///      Approval and deposit failures are surfaced via `flowError` — nothing is swallowed.
   const depositWithApproval = async (amount: bigint) => {
     if (!publicClient || !address || amount === 0n) return;
+    setFlowError(undefined);
     try {
       const current = (await publicClient.readContract({
         abi: erc20Abi,
@@ -78,8 +90,12 @@ export function useVault() {
       });
       setFlowHash(depositHash);
       await publicClient.waitForTransactionReceipt({ hash: depositHash });
-    } catch {
-      // user rejected or tx failed — error surfaces via useWriteContract state
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // User rejection is not an error worth surfacing; real failures are.
+      if (!msg.toLowerCase().includes("user rejected") && !msg.toLowerCase().includes("user denied")) {
+        setFlowError(msg.slice(0, 200));
+      }
     } finally {
       setFlowStep("idle");
     }
@@ -103,7 +119,7 @@ export function useVault() {
       chainId: baseSepolia.id,
     });
 
-  return { balance, totalDeposits, deposit, depositWithApproval, withdraw, allowance, flowStep, flowHash, flowReceipt, isPending, txHash, receipt, error, tokenAddr };
+  return { balance, availableBalance, totalDeposits, deposit, depositWithApproval, withdraw, allowance, flowStep, flowHash, flowReceipt, flowError, isPending, txHash, receipt, error, tokenAddr };
 }
 
 export function usePolicies() {

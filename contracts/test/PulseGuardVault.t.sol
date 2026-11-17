@@ -66,6 +66,67 @@ contract PulseGuardVaultTest is Test {
         assertEq(token.balanceOf(executor), 0);
     }
 
+    function testReserveReleaseAndAvailableBalance() public {
+        vm.prank(user);
+        vault.deposit(100 ether);
+
+        vm.prank(executor);
+        vault.reserve(user, 30 ether);
+        assertEq(vault.reservedBalances(user), 30 ether);
+        assertEq(vault.availableBalance(user), 70 ether);
+
+        // Reservation cannot exceed deposited balance
+        vm.prank(executor);
+        vm.expectRevert(PulseGuardVault.InsufficientBalance.selector);
+        vault.reserve(user, 80 ether);
+
+        vm.prank(executor);
+        vault.release(user, 30 ether);
+        assertEq(vault.reservedBalances(user), 0);
+        assertEq(vault.availableBalance(user), 100 ether);
+    }
+
+    function testReserveOnlyExecutor() public {
+        vm.prank(user);
+        vault.deposit(100 ether);
+        vm.prank(user);
+        vm.expectRevert(PulseGuardVault.NotExecutor.selector);
+        vault.reserve(user, 10 ether);
+    }
+
+    function testWithdrawBlockedByReservation() public {
+        vm.prank(user);
+        vault.deposit(100 ether);
+        vm.prank(executor);
+        vault.reserve(user, 80 ether);
+
+        vm.prank(user);
+        vm.expectRevert(PulseGuardVault.InsufficientBalance.selector);
+        vault.withdraw(30 ether); // only 20 available
+
+        vm.prank(user);
+        vault.withdraw(20 ether);
+        assertEq(vault.balances(user), 80 ether);
+    }
+
+    function testProtectedExitRespectsOtherReservations() public {
+        vm.prank(user);
+        vault.deposit(100 ether);
+        // 50 reserved by other active policies; only 50 is exitable.
+        vm.prank(executor);
+        vault.reserve(user, 50 ether);
+
+        vm.prank(executor);
+        vm.expectRevert(PulseGuardVault.InsufficientBalance.selector);
+        vault.protectedExit(user, recipient, 60 ether);
+
+        vm.prank(executor);
+        vault.protectedExit(user, recipient, 50 ether);
+        assertEq(token.balanceOf(recipient), 50 ether);
+        assertEq(vault.balances(user), 50 ether);
+        assertEq(vault.reservedBalances(user), 50 ether); // other policy still reserved
+    }
+
     function testPauseBlocksDeposit() public {
         vm.prank(owner);
         vault.pause();

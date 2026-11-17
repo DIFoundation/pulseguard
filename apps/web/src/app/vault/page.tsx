@@ -11,7 +11,7 @@ import { useAccount } from "wagmi";
 
 export default function VaultPage() {
   const { isConnected } = useAccount();
-  const { balance, totalDeposits, depositWithApproval, withdraw, flowStep, flowHash, flowReceipt, isPending, txHash, receipt, error, tokenAddr } = useVault();
+  const { balance, availableBalance, totalDeposits, depositWithApproval, withdraw, flowStep, flowHash, flowReceipt, flowError, isPending, txHash, receipt, error, tokenAddr } = useVault();
   const [amount, setAmount] = useState("");
 
   // Clear the amount input after a successful deposit or withdraw.
@@ -27,6 +27,7 @@ export default function VaultPage() {
   const balLoading = balance.isLoading;
   const totalLoading = totalDeposits.isLoading;
   const bal = balance.data !== undefined && balance.data !== null ? formatTokenAmount(balance.data as bigint) : "0";
+  const avail = availableBalance.data !== undefined && availableBalance.data !== null ? formatTokenAmount(availableBalance.data as bigint) : "0";
   const total = totalDeposits.data !== undefined && totalDeposits.data !== null ? formatTokenAmount(totalDeposits.data as bigint) : "0";
 
   const handleDeposit = () => {
@@ -58,6 +59,7 @@ export default function VaultPage() {
             <p className="mt-3 text-3xl font-bold">{isConnected ? (balLoading ? <Skeleton className="h-9 w-32" /> : bal) : "—"}</p>
             <p className="mt-1 text-sm text-foreground/50">protected asset units</p>
             <div className="mt-6 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-foreground/60">Available (unreserved)</span><span>{avail}</span></div>
               <div className="flex justify-between"><span className="text-foreground/60">Total vault deposits</span><span>{totalLoading ? <Skeleton className="h-4 w-16" /> : total}</span></div>
               <div className="flex justify-between"><span className="text-foreground/60">Vault contract</span><span className="font-mono text-xs" title={deployments.vault.address}>{shortAddress(deployments.vault.address)}</span></div>
               <div className="flex justify-between"><span className="text-foreground/60">Asset token</span><span className="font-mono text-xs" title={tokenAddr}>{shortAddress(tokenAddr)}</span></div>
@@ -84,6 +86,7 @@ export default function VaultPage() {
             {(txHash || flowHash) && <p className="mt-3 break-all font-mono text-xs text-foreground/50">tx: {flowHash ?? txHash}</p>}
             {(receipt.isSuccess || flowReceipt.isSuccess) && <Badge tone="success">Confirmed</Badge>}
             {error && <p className="mt-2 text-sm text-danger">{error.message.slice(0, 120)}</p>}
+            {flowError && <p className="mt-2 text-sm text-danger">{flowError}</p>}
             <p className="mt-4 text-xs text-foreground/40">
               Protected exits can only be triggered by an authenticated Reactive callback per your active policy.
             </p>

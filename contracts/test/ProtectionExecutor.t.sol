@@ -114,6 +114,30 @@ contract ProtectionExecutorTest is Test {
         executor.executeProtection(reactive, id);
     }
 
+    function testExpiredCallbackDoesNotEmitSuccess() public {
+        vm.warp(100);
+        ProtectionTypes.Policy memory p = ProtectionTypes.Policy({
+            id: 0, owner: user, asset: address(token), monitoredAsset: ASSET,
+            destinationChainId: BASE_CHAIN, triggerType: ProtectionTypes.TriggerType.STOP_LOSS,
+            threshold: 1900e8, referencePrice: 0, maxDrawdownBps: 0,
+            protectedAmount: 10 ether, recipient: recipient,
+            action: ProtectionTypes.ProtectionAction.PROTECTED_EXIT,
+            status: ProtectionTypes.PolicyStatus.CREATED, createdAt: 0, expiresAt: 50, executedAt: 0
+        });
+        vm.prank(user);
+        uint256 id = manager.createPolicy(p);
+        vm.prank(operator);
+        feed.updatePrice(ASSET, 100e8);
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtectionExecutor.ProtectionNotExecuted(id, reactive, ProtectionTypes.ExecutionOutcome.EXPIRED);
+        vm.prank(proxy);
+        executor.executeProtection(reactive, id);
+
+        assertEq(token.balanceOf(recipient), 0); // no funds moved
+        assertEq(uint8(manager.getPolicy(id).status), uint8(ProtectionTypes.PolicyStatus.EXPIRED));
+    }
+
     function testCrossChainExecutorRecords() public {
         vm.prank(proxy);
         uniExecutor.recordProtection(reactive, 42, 1800e8);

@@ -133,7 +133,6 @@ export function useVault() {
 }
 
 export function usePolicies() {
-  const { address } = useConnection();
   const managerAddr = deployments.protectionManager.address as `0x${string}`;
 
   const nextId = useReadContract({

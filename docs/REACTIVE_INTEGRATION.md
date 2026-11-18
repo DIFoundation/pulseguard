@@ -34,13 +34,13 @@ SYSTEM.subscribe(originChainId, manager, policySyncTopic0, REACTIVE_IGNORE, REAC
 ```
 
 - `priceTopic0 = uint256(keccak256("PriceUpdated(address,uint256,uint256)"))`
-- `policySyncTopic0 = uint256(keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,bool)"))`
+- `policySyncTopic0 = uint256(keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,uint64,bool)"))`
 
 ## LogRecord decoding
 
 `PriceUpdated(address indexed asset, uint256 price, uint256 timestamp)` → `opCode == 2` (topic0 + 1 indexed), `topic1 = asset`, `data = abi.encode(price, timestamp)`.
 
-`PolicyMirrorSync(uint256 indexed id, address indexed monitoredAsset, uint8 triggerType, uint256 threshold, uint256 referencePrice, uint256 maxDrawdownBps, uint256 destinationChainId, bool active)` → `opCode == 3` (topic0 + 2 indexed), `topic1 = id`, `topic2 = monitoredAsset`, `data = abi.encode(triggerType, threshold, referencePrice, maxDrawdownBps, destinationChainId, active)`.
+`PolicyMirrorSync(uint256 indexed id, address indexed monitoredAsset, uint8 triggerType, uint256 threshold, uint256 referencePrice, uint256 maxDrawdownBps, uint256 destinationChainId, uint64 expiresAt, bool active)` → `opCode == 3` (topic0 + 2 indexed), `topic1 = id`, `topic2 = monitoredAsset`, `data = abi.encode(triggerType, threshold, referencePrice, maxDrawdownBps, destinationChainId, expiresAt, active)`.
 
 ## Policy mirror auto-sync
 

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { usePolicies, useVault } from "@/hooks/useContracts";
-import { deployments, isConfigured, baseSepolia, unichainSepolia } from "@pulseguard/config";
+import { deployments, isConfigured } from "@pulseguard/config";
 import { useAccount } from "wagmi";
 import { parseUnits } from "viem";
 import { formatTokenAmount } from "@/lib/format";

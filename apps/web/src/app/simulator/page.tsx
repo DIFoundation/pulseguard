@@ -7,7 +7,7 @@ import { usePriceFeed } from "@/hooks/useContracts";
 import { deployments, isConfigured } from "@pulseguard/config";
 import { useAccount } from "wagmi";
 import { parseUnits } from "viem";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface Scenario {
   id: number;
@@ -20,7 +20,7 @@ interface Scenario {
 }
 
 export default function SimulatorPage() {
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const { updatePrice, isPending: pricePending, txHash: priceTx, receipt: priceReceipt } = usePriceFeed();
   const [publishPrice, setPublishPrice] = useState("1900");
   const feedAsset = deployments.testToken.address as `0x${string}`;

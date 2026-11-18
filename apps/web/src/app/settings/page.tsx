@@ -3,7 +3,7 @@
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { useAccount } from "wagmi";
-import { deployments, isConfigured } from "@pulseguard/config";
+import { deployments } from "@pulseguard/config";
 
 export default function SettingsPage() {
   const { address, chainId, isConnected } = useAccount();

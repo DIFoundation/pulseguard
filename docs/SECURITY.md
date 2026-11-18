@@ -31,7 +31,7 @@ Testnet hackathon prototype — **not audited**. Do not use with real funds.
 
 - **Policy mirroring**: `PulseGuardReactive` keeps an event-synced mirror of *active* policies via `PolicyMirrorSync` (cannot do cross-chain view calls), stored in bounded per-asset arrays. Mirror drift is possible if events are missed; the manager/executor is authoritative — a missed sync only delays a callback, it cannot cause an unauthorized execution.
 - **Manual settlement for Unichain policies**: `SettlementRelay.settle()` is permissionless and does **not** require the Unichain attestation — it re-validates the trigger on Base via `manager.executePolicy`. The attestation (`CrossChainExecutor.executedPolicies`) proves the Reactive callback fired cross-chain; it is evidence, not a settlement precondition.
-- **Single-asset vault**: `executePolicy` only moves funds when `policy.asset == vault.asset()`; other assets mark EXECUTED without transfer (documented).
+- **Single-asset vault**: `createPolicy` rejects any `policy.asset` that isn't `vault.asset()` (`UnsupportedAsset`), so every executable policy is guaranteed a real protected exit — there is no "EXECUTED without transfer" path.
 - **Cross-chain attestation only**: `CrossChainExecutor` on Unichain records a verifiable attestation of the protection event — it does not move assets. Asset movement happens on Base Sepolia via `ProtectionExecutor`. Attestations are tamper-evident (`verifyAttestation`) but carry no funds.
 - **Policy cap**: `MAX_POLICIES_PER_ASSET` (50) counts live policies only — terminal policies (EXECUTED/CANCELLED/EXPIRED) free their slot.
 - **Mock oracle**: prices are operator-published, not market data.

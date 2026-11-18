@@ -4,12 +4,12 @@ import { Navbar } from "@/components/Navbar";
 import { PageHeader, StatCard, Card, Badge, Skeleton } from "@/components/ui";
 import { useAccount } from "wagmi";
 import { useVault, usePolicies } from "@/hooks/useContracts";
-import { deployments, isConfigured, baseSepolia, unichainSepolia } from "@pulseguard/config";
+import { isConfigured } from "@pulseguard/config";
 import { formatTokenAmount } from "@/lib/format";
 import Link from "next/link";
 
 export default function DashboardPage() {
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const { balance, totalDeposits } = useVault();
   const { nextId } = usePolicies();
 

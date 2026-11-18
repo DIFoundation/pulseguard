@@ -18,7 +18,7 @@ ProtectionManager remains the source of truth. `PulseGuardReactive` keeps an **e
 - Settlement side: `SettlementRelay.settle()` is permissionless — anyone may settle an attested Unichain policy on Base; the relay only forwards to `manager.executePolicy`, which re-validates status + live trigger. The Unichain attestation (`CrossChainExecutor.executedPolicies`) is evidence the callback fired, not a settlement precondition.
 
 ## TD-6: Vault custody
-Non-custodial ERC-4626-style vault: users deposit ERC-20, balances tracked per user. Protection action = executor calls `vault.emergencyWithdraw(policyId)` which burns the user's vault shares and transfers underlying to a user-set `protectedRecipient` — never to an arbitrary address. Executor cannot withdraw to itself.
+Single-asset vault (one `IERC20 asset`, no shares): users `deposit()`/`withdraw()` against a per-user `balances` mapping. Active policies `reserve()` part of a user's balance; `availableBalance = balances - reservedBalances` blocks withdrawing committed funds. Protection action = the registered executor calls `protectedExit(user, recipient, amount)`, which transfers underlying directly to the policy's `recipient` — never to an arbitrary address or the executor. Reservations are released on cancel/expire/execute via `release()`.
 
 ## TD-7: Mock oracle
 `MockPriceFeed` (owner/operator-gated `updatePrice`) emits `PriceUpdated(address indexed asset, uint256 price, uint256 timestamp)`. 8 decimals, nonzero enforced. Clearly labeled MOCK; production mode would use a Chainlink-style `IPriceFeed` adapter — interface defined, not fabricated.

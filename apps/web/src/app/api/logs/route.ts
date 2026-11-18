@@ -86,12 +86,6 @@ const SCAN_BLOCKS = 200_000n;
 const CHUNK = 10_000n;
 const CONCURRENCY = 8;
 
-/// @dev Response cache: identical scans within CACHE_TTL_MS are served from
-///      memory. A full scan issues ~20 eth_getLogs calls — caching keeps the
-///      activity page cheap under polling.
-const CACHE_TTL_MS = 30_000;
-const responseCache = new Map<string, { at: number; logs: NormalizedLog[] }>();
-
 /// @dev Simple per-IP rate limit: RATE_LIMIT requests per RATE_WINDOW_MS.
 ///      In-memory — sufficient for a single-instance deployment; swap for a
 ///      shared store (e.g. Upstash) if horizontally scaled.
@@ -146,12 +140,32 @@ async function rpcCall(url: string, method: string, params: unknown[]): Promise<
   return json.result;
 }
 
+/// @dev Incremental index: per (chain,address) we keep the merged log set and
+///      the highest block already scanned. Repeat requests only fetch blocks
+///      after `lastBlock` instead of rescanning the full SCAN_BLOCKS window.
+///      In-memory — a restart triggers one full rescan. Reorgs are not handled
+///      (acceptable for testnet demo; a production indexer should confirm
+///      finality before advancing lastBlock).
+interface IndexState {
+  logs: NormalizedLog[];
+  lastBlock: bigint;
+  at: number;
+}
+const indexStore = new Map<string, IndexState>();
+
+/// @dev How stale an index may get before we force a full rescan (covers gaps
+///      if the process was paused or a scan partially failed).
+const INDEX_MAX_AGE_MS = 10 * 60_000;
+
 /// @dev eth_getLogs over chunked block ranges, fetched in parallel batches.
 ///      Public RPCs reject very large single ranges, hence the chunking.
-async function scanLogs(rpcUrl: string, address: string): Promise<NormalizedLog[]> {
+///      `fromBlock` is inclusive; pass 0n for a full-window scan.
+async function scanLogs(rpcUrl: string, address: string, fromBlock: bigint): Promise<{ logs: NormalizedLog[]; latest: bigint }> {
   const latestHex = (await rpcCall(rpcUrl, "eth_blockNumber", [])) as string;
   const latest = BigInt(latestHex);
-  const from = latest > SCAN_BLOCKS ? latest - SCAN_BLOCKS : 0n;
+  const windowStart = latest > SCAN_BLOCKS ? latest - SCAN_BLOCKS : 0n;
+  const from = fromBlock > windowStart ? fromBlock : windowStart;
+  if (from > latest) return { logs: [], latest };
 
   const ranges: { fromBlock: string; toBlock: string }[] = [];
   for (let f = from; f <= latest; f += CHUNK) {
@@ -178,14 +192,14 @@ async function scanLogs(rpcUrl: string, address: string): Promise<NormalizedLog[
       }
     }
   }
-  return logs;
+  return { logs, latest };
 }
 
 const workingRpc = new Map<string, string>();
 
 /// @dev Try each candidate RPC until one completes the scan; cache the winner
 ///      so subsequent requests skip the failing endpoints.
-async function fetchLogs(chain: string, address: string): Promise<NormalizedLog[]> {
+async function fetchLogs(chain: string, address: string, fromBlock: bigint): Promise<{ logs: NormalizedLog[]; latest: bigint }> {
   const candidates = RPC_CANDIDATES[chain];
   if (!candidates?.length) throw new Error(`no RPC configured for chain ${chain}`);
 
@@ -197,9 +211,9 @@ async function fetchLogs(chain: string, address: string): Promise<NormalizedLog[
   let lastErr: unknown;
   for (const url of ordered) {
     try {
-      const logs = await scanLogs(url, address);
+      const result = await scanLogs(url, address, fromBlock);
       workingRpc.set(chain, url);
-      return logs;
+      return result;
     } catch (e) {
       lastErr = e;
     }
@@ -234,15 +248,32 @@ export async function GET(req: Request) {
   }
 
   const cacheKey = `${chain}:${address.toLowerCase()}`;
-  const cached = responseCache.get(cacheKey);
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
-    return NextResponse.json({ logs: cached.logs, cached: true });
-  }
+  const state = indexStore.get(cacheKey);
+  const fresh = state && Date.now() - state.at < INDEX_MAX_AGE_MS;
+
+  // Incremental: only scan blocks after lastBlock. Full rescan when there is
+  // no state or the index is stale.
+  const fromBlock = fresh ? state.lastBlock + 1n : 0n;
 
   try {
-    const logs = await fetchLogs(chain, address);
-    responseCache.set(cacheKey, { at: Date.now(), logs });
-    return NextResponse.json({ logs });
+    const { logs: newLogs, latest } = await fetchLogs(chain, address, fromBlock);
+
+    // Merge + dedupe by (txHash, logIndex); keep only logs inside the window.
+    const windowStart = latest > SCAN_BLOCKS ? latest - SCAN_BLOCKS : 0n;
+    const seen = new Set<string>();
+    const merged: NormalizedLog[] = [];
+    const all = fresh ? [...state.logs, ...newLogs] : newLogs;
+    for (const l of all) {
+      if (BigInt(l.blockNumber) < windowStart) continue;
+      const k = `${l.transactionHash}:${l.logIndex}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      merged.push(l);
+    }
+    merged.sort((a, b) => Number(BigInt(a.blockNumber) - BigInt(b.blockNumber)) || Number(BigInt(a.logIndex) - BigInt(b.logIndex)));
+
+    indexStore.set(cacheKey, { logs: merged, lastBlock: latest, at: Date.now() });
+    return NextResponse.json({ logs: merged, incremental: fresh });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return err("RPC_ERROR", message.slice(0, 200), 502);

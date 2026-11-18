@@ -62,9 +62,11 @@ DEPLOYER_PRIVATE_KEY=0x... \
 forge script script/DeployExecutor.s.sol:DeployExecutor \
   --rpc-url $UNICHAIN_RPC --broadcast
 
-# 5. Base Sepolia: wire manager + vault
+# 5. Base Sepolia: wire manager + vault.
+#    Configure.s.sol registers SettlementRelay (NOT the Unichain executor)
+#    as executorForChain[1301] — the relay is what calls manager.executePolicy.
 MANAGER_ADDRESS=0x<manager> VAULT_ADDRESS=0x<vault> \
-BASE_EXECUTOR=0x<baseExecutor> UNI_EXECUTOR=0x<uniExecutor> \
+BASE_EXECUTOR=0x<baseExecutor> SETTLEMENT_RELAY=0x<settlementRelay> \
 REACTIVE_ADDRESS=0x<reactive> \
 DEPLOYER_PRIVATE_KEY=0x... \
 forge script script/Configure.s.sol:Configure \
@@ -86,7 +88,8 @@ forge script script/ConfigureReactive.s.sol:ConfigureReactive \
 2. Set `NEXT_PUBLIC_*` env vars in `apps/web/.env.local`.
 3. Fund reactive contract (REACT on Lasna) and executors (native token).
 4. Verify executor mappings on both contracts:
-   - `cast call $MANAGER "executorForChain(uint256)(address)" 84532 --rpc-url $BASE_RPC`
+   - `cast call $MANAGER "executorForChain(uint256)(address)" 84532 --rpc-url $BASE_RPC` → ProtectionExecutor
+   - `cast call $MANAGER "executorForChain(uint256)(address)" 1301 --rpc-url $BASE_RPC` → SettlementRelay
    - `cast call $REACTIVE "executorForChain(uint256)(address)" 84532 --rpc-url $LASNA_RPC`
    - `cast call $REACTIVE "executorForChain(uint256)(address)" 1301 --rpc-url $LASNA_RPC`
 5. Policies auto-mirror on Lasna via `PolicyMirrorSync` events — no manual `mirrorPolicy` calls needed (owner override still available).

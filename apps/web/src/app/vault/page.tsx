@@ -77,7 +77,12 @@ export default function VaultPage() {
             />
             <div className="mt-4 flex gap-3">
               <button onClick={handleDeposit} disabled={!isConnected || isPending || flowStep !== "idle" || !configured} className="flex-1 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-                {flowStep === "approving" ? "Approving…" : flowStep === "depositing" ? "Depositing…" : "Deposit"}
+                {flowStep === "checking" && "Checking allowance…"}
+                {flowStep === "approving" && "Approving token…"}
+                {flowStep === "approval-confirmed" && "Approval confirmed — depositing…"}
+                {flowStep === "depositing" && "Depositing…"}
+                {flowStep === "deposit-confirmed" && "Deposit confirmed"}
+                {flowStep === "idle" && "Deposit"}
               </button>
               <button onClick={handleWithdraw} disabled={!isConnected || isPending || !configured} className="flex-1 rounded-lg border border-border px-4 py-2 text-sm font-medium disabled:opacity-50">
                 Withdraw

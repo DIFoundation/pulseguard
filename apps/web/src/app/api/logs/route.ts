@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import fs from "node:fs";
+import path from "node:path";
 
 const execFileAsync = promisify(execFile);
 
@@ -24,11 +26,78 @@ const RPC_CANDIDATES: Record<string, string[]> = {
   ),
 };
 
+/// @dev Address allowlist per chain — only known PulseGuard contracts may be
+///      scanned. Prevents the endpoint being used as a free eth_getLogs proxy
+///      for arbitrary addresses (which would burn RPC quota).
+const ALLOWED_ADDRESSES: Record<string, Set<string>> = (() => {
+  const norm = (a?: string) => (a ? a.toLowerCase() : "");
+  const base = [
+    process.env.NEXT_PUBLIC_VAULT_ADDRESS,
+    process.env.NEXT_PUBLIC_MANAGER_ADDRESS,
+    process.env.NEXT_PUBLIC_FEED_ADDRESS,
+    process.env.NEXT_PUBLIC_BASE_EXECUTOR,
+    process.env.NEXT_PUBLIC_SETTLEMENT_RELAY,
+    process.env.NEXT_PUBLIC_TOKEN_ADDRESS,
+  ].map(norm).filter(Boolean);
+  const uni = [process.env.NEXT_PUBLIC_UNI_EXECUTOR].map(norm).filter(Boolean);
+  const lasna = [process.env.NEXT_PUBLIC_REACTIVE_ADDRESS].map(norm).filter(Boolean);
+
+  // Fallback: merge addresses from deployments/*.json so the allowlist stays
+  // correct even when env vars are unset (config comments reference these files).
+  try {
+    const candidates = [
+      path.resolve(process.cwd(), "../../deployments"),
+      path.resolve(process.cwd(), "../../../deployments"),
+    ];
+    const files: Record<string, string> = {
+      "base-sepolia.json": "base",
+      "unichain-sepolia.json": "uni",
+      "reactive-lasna.json": "lasna",
+    };
+    for (const dir of candidates) {
+      for (const [file, chain] of Object.entries(files)) {
+        try {
+          const raw = fs.readFileSync(path.join(dir, file), "utf8");
+          const json = JSON.parse(raw) as { contracts?: Record<string, { address?: string }> };
+          for (const c of Object.values(json.contracts ?? {})) {
+            const a = norm(c.address);
+            if (a) {
+              if (chain === "base") base.push(a);
+              else if (chain === "uni") uni.push(a);
+              else lasna.push(a);
+            }
+          }
+        } catch { /* file absent — skip */ }
+      }
+      if (fs.existsSync(dir)) break;
+    }
+  } catch { /* deployments dir unavailable — env-only allowlist */ }
+
+  return {
+    base: new Set(base),
+    uni: new Set(uni),
+    lasna: new Set(lasna),
+  };
+})();
+
 /// How far back to scan. Base/Unichain Sepolia ~2s blocks → 200k ≈ 4.6 days,
 /// covers the Nov 14–17 deployment + demo window. Lasna ~4 blocks/s → 200k ≈ 14h.
 const SCAN_BLOCKS = 200_000n;
 const CHUNK = 10_000n;
 const CONCURRENCY = 8;
+
+/// @dev Response cache: identical scans within CACHE_TTL_MS are served from
+///      memory. A full scan issues ~20 eth_getLogs calls — caching keeps the
+///      activity page cheap under polling.
+const CACHE_TTL_MS = 30_000;
+const responseCache = new Map<string, { at: number; logs: NormalizedLog[] }>();
+
+/// @dev Simple per-IP rate limit: RATE_LIMIT requests per RATE_WINDOW_MS.
+///      In-memory — sufficient for a single-instance deployment; swap for a
+///      shared store (e.g. Upstash) if horizontally scaled.
+const RATE_LIMIT = 12;
+const RATE_WINDOW_MS = 60_000;
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
 export interface NormalizedLog {
   blockNumber: string;
@@ -44,6 +113,23 @@ interface RpcLog {
   logIndex: string;
   topics: string[];
   data: string;
+}
+
+const ADDR_RE = /^0x[0-9a-fA-F]{40}$/;
+
+function err(code: string, message: string, status: number) {
+  return NextResponse.json({ error: { code, message } }, { status });
+}
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const bucket = rateBuckets.get(ip);
+  if (!bucket || now > bucket.resetAt) {
+    rateBuckets.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  bucket.count += 1;
+  return bucket.count > RATE_LIMIT;
 }
 
 /// @dev curl transport for all chains: the Lasna erpc gateway fingerprints TLS
@@ -123,20 +209,42 @@ async function fetchLogs(chain: string, address: string): Promise<NormalizedLog[
 
 /// @dev Unified log proxy: ?chain=base|uni|lasna&address=0x...
 ///      All chains served via eth_getLogs over their configured RPC endpoint.
+///      Restricted to known PulseGuard contract addresses.
 export async function GET(req: Request) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (rateLimited(ip)) {
+    return err("RATE_LIMITED", "Too many requests — try again in a minute.", 429);
+  }
+
   const { searchParams } = new URL(req.url);
   const chain = searchParams.get("chain");
   const address = searchParams.get("address");
   if (!chain || !address) {
-    return NextResponse.json({ error: "chain and address required" }, { status: 400 });
+    return err("MISSING_PARAMS", "chain and address required", 400);
   }
   if (!RPC_CANDIDATES[chain]) {
-    return NextResponse.json({ error: `unknown chain ${chain}` }, { status: 400 });
+    return err("UNKNOWN_CHAIN", `unknown chain ${chain}`, 400);
   }
+  if (!ADDR_RE.test(address)) {
+    return err("INVALID_ADDRESS", "address must be a 0x-prefixed 20-byte hex address", 400);
+  }
+  const allowed = ALLOWED_ADDRESSES[chain];
+  if (allowed && allowed.size > 0 && !allowed.has(address.toLowerCase())) {
+    return err("ADDRESS_NOT_ALLOWED", "address is not a known PulseGuard contract on this chain", 403);
+  }
+
+  const cacheKey = `${chain}:${address.toLowerCase()}`;
+  const cached = responseCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return NextResponse.json({ logs: cached.logs, cached: true });
+  }
+
   try {
     const logs = await fetchLogs(chain, address);
+    responseCache.set(cacheKey, { at: Date.now(), logs });
     return NextResponse.json({ logs });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    const message = e instanceof Error ? e.message : String(e);
+    return err("RPC_ERROR", message.slice(0, 200), 502);
   }
 }

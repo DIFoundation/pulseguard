@@ -3,6 +3,7 @@ pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
 import {ProtectionManager} from "../src/protection/ProtectionManager.sol";
+import {SettlementRelay} from "../src/protection/SettlementRelay.sol";
 import {ProtectionTypes} from "../src/libraries/ProtectionTypes.sol";
 import {ProtectionErrors} from "../src/libraries/ProtectionErrors.sol";
 import {MockPriceFeed} from "../src/oracle/MockPriceFeed.sol";
@@ -157,11 +158,11 @@ contract ProtectionManagerTest is Test {
     }
 
     function testCancelExpiredPolicyReverts() public {
-        vm.warp(100);
         ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
         p.expiresAt = 50;
         vm.prank(user);
         uint256 id = manager.createPolicy(p);
+        vm.warp(100);
 
         vm.prank(operator);
         feed.updatePrice(ASSET, 100e8);
@@ -267,11 +268,11 @@ contract ProtectionManagerTest is Test {
     }
 
     function testExpiredPolicyTransitionsWithoutRevert() public {
-        vm.warp(100);
         ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
-        p.expiresAt = 50; // already expired at timestamp 100
+        p.expiresAt = 50;
         vm.prank(user);
         uint256 id = manager.createPolicy(p);
+        vm.warp(100); // now past expiresAt
 
         vm.prank(operator);
         feed.updatePrice(ASSET, 100e8); // trigger condition met, but expired
@@ -295,5 +296,160 @@ contract ProtectionManagerTest is Test {
         vm.prank(executor);
         vm.expectRevert(ProtectionErrors.TriggerNotMet.selector);
         manager.executePolicy(id);
+    }
+
+    // ---------- Permissionless expiry ----------
+
+    function testExpirePolicyPermissionless() public {
+        ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p.expiresAt = 50;
+        vm.prank(user);
+        uint256 id = manager.createPolicy(p);
+        assertEq(vault.reservedBalances(user), 10 ether);
+
+        vm.warp(100);
+        // Anyone can expire — not just the owner.
+        vm.prank(makeAddr("rando"));
+        manager.expirePolicy(id);
+
+        assertEq(uint8(manager.getPolicy(id).status), uint8(ProtectionTypes.PolicyStatus.EXPIRED));
+        assertEq(vault.reservedBalances(user), 0);
+        assertEq(vault.availableBalance(user), 1000 ether);
+    }
+
+    function testExpireDeactivatedPolicy() public {
+        ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p.expiresAt = 50;
+        vm.prank(user);
+        uint256 id = manager.createPolicy(p);
+        vm.prank(user);
+        manager.deactivatePolicy(id); // ACTIVE -> CREATED, reservation still held
+
+        vm.warp(100);
+        vm.prank(makeAddr("rando"));
+        manager.expirePolicy(id); // must release exactly once
+
+        assertEq(uint8(manager.getPolicy(id).status), uint8(ProtectionTypes.PolicyStatus.EXPIRED));
+        assertEq(vault.reservedBalances(user), 0);
+        assertEq(vault.availableBalance(user), 1000 ether);
+    }
+
+    function testExpirePolicyReverts() public {
+        // No expiry set -> NotExpired
+        vm.prank(user);
+        uint256 id1 = manager.createPolicy(_policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8));
+        vm.prank(user);
+        vm.expectRevert(ProtectionErrors.NotExpired.selector);
+        manager.expirePolicy(id1);
+
+        // Not yet past expiresAt -> NotExpired
+        ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p.expiresAt = 1000;
+        vm.prank(user);
+        uint256 id2 = manager.createPolicy(p);
+        vm.prank(user);
+        vm.expectRevert(ProtectionErrors.NotExpired.selector);
+        manager.expirePolicy(id2);
+
+        // Terminal policy -> InvalidStatusTransition
+        vm.prank(user);
+        manager.cancelPolicy(id2);
+        vm.warp(2000);
+        vm.prank(user);
+        vm.expectRevert(ProtectionErrors.InvalidStatusTransition.selector);
+        manager.expirePolicy(id2);
+    }
+
+    function testCreatePolicyRejectsAlreadyExpired() public {
+        vm.warp(100);
+        ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p.expiresAt = 50; // in the past
+        vm.prank(user);
+        vm.expectRevert(ProtectionErrors.PolicyExpired.selector);
+        manager.createPolicy(p);
+    }
+
+    // ---------- Bounded active-policy array ----------
+
+    function testActiveArrayCleanup() public {
+        uint256 id1 = _createStopLoss();
+        uint256 id2 = _createStopLoss();
+        uint256 id3 = _createStopLoss();
+        assertEq(manager.policiesByAsset(ASSET).length, 3);
+
+        vm.prank(user);
+        manager.cancelPolicy(id2);
+        assertEq(manager.policiesByAsset(ASSET).length, 2);
+
+        vm.prank(user);
+        manager.deactivatePolicy(id1); // CREATED leaves the eval list too
+        assertEq(manager.policiesByAsset(ASSET).length, 1);
+        assertEq(manager.policiesByAsset(ASSET)[0], id3);
+
+        // Reactivation re-adds it.
+        vm.prank(user);
+        manager.activatePolicy(id1);
+        assertEq(manager.policiesByAsset(ASSET).length, 2);
+    }
+
+    function _createStopLoss() internal returns (uint256 id) {
+        vm.prank(user);
+        id = manager.createPolicy(_policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8));
+    }
+
+    // ---------- Settlement relay authorization ----------
+
+    function testSettlementRelayLifecycle() public {
+        SettlementRelay relay = new SettlementRelay(address(manager));
+        vm.prank(owner);
+        manager.setExecutorForChain(UNI_CHAIN, address(relay)); // relay replaces raw uniExecutor
+
+        ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p.destinationChainId = UNI_CHAIN;
+        vm.prank(user);
+        uint256 id = manager.createPolicy(p);
+
+        // Settlement before trigger -> TriggerNotMet
+        vm.prank(operator);
+        feed.updatePrice(ASSET, 2000e8);
+        vm.prank(makeAddr("rando"));
+        vm.expectRevert(ProtectionErrors.TriggerNotMet.selector);
+        relay.settle(id);
+
+        // Trigger, then settle — permissionless caller.
+        vm.prank(operator);
+        feed.updatePrice(ASSET, 1800e8);
+        vm.prank(makeAddr("rando"));
+        relay.settle(id);
+        assertEq(uint8(manager.getPolicy(id).status), uint8(ProtectionTypes.PolicyStatus.EXECUTED));
+        assertEq(token.balanceOf(recipient), 10 ether);
+
+        // Replay -> policy no longer ACTIVE.
+        vm.prank(makeAddr("rando"));
+        vm.expectRevert(ProtectionErrors.PolicyNotActive.selector);
+        relay.settle(id);
+    }
+
+    function testOnlyRelayCanExecuteUnichainPolicy() public {
+        SettlementRelay relay = new SettlementRelay(address(manager));
+        vm.prank(owner);
+        manager.setExecutorForChain(UNI_CHAIN, address(relay));
+
+        ProtectionTypes.Policy memory p = _policy(ProtectionTypes.TriggerType.STOP_LOSS, 1900e8);
+        p.destinationChainId = UNI_CHAIN;
+        vm.prank(user);
+        uint256 id = manager.createPolicy(p);
+        vm.prank(operator);
+        feed.updatePrice(ASSET, 1800e8);
+
+        // The old raw executor address is no longer authorized.
+        vm.prank(makeAddr("uniExecutor"));
+        vm.expectRevert(ProtectionErrors.NotExecutor.selector);
+        manager.executePolicy(id);
+
+        // The relay is.
+        vm.prank(makeAddr("rando"));
+        relay.settle(id);
+        assertEq(uint8(manager.getPolicy(id).status), uint8(ProtectionTypes.PolicyStatus.EXECUTED));
     }
 }

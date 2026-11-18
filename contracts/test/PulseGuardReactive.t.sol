@@ -2,6 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
+import {VmSafe} from "forge-std/Vm.sol";
 import {PulseGuardReactive} from "../src/reactive/PulseGuardReactive.sol";
 import {IReactive} from "@reactive/src/interfaces/IReactive.sol";
 import {MockPriceFeed} from "../src/oracle/MockPriceFeed.sol";
@@ -204,5 +205,68 @@ contract PulseGuardReactiveTest is Test {
         (, , , , , , , uint64 expiresAt, bool active) = reactive.mirrorPolicies(21);
         assertEq(expiresAt, 500);
         assertTrue(active);
+    }
+
+    // ---------- Per-policy callback latch ----------
+
+    function testCallbackLatchPreventsRepeatRequests() public {
+        reactive.mirrorPolicy(30, ASSET, 0, 1900e8, 0, 0, 84532, 0);
+
+        vm.recordLogs();
+        IReactive.LogRecord memory log1 = _logRecord(1800e8, 0xaaa1, 0);
+        vm.prank(SYSTEM);
+        reactive.react(log1);
+        // A second, DIFFERENT price update still below threshold must not
+        // request another callback while the policy stays active.
+        IReactive.LogRecord memory log2 = _logRecord(1700e8, 0xbbb2, 0);
+        vm.prank(SYSTEM);
+        reactive.react(log2);
+
+        VmSafe.Log[] memory entries = vm.getRecordedLogs();
+        uint256 callbackCount;
+        bytes32 sig = keccak256("CallbackRequested(uint256,uint256,address,uint256,uint256)");
+        for (uint256 i; i < entries.length; ++i) {
+            if (entries[i].topics[0] == sig) ++callbackCount;
+        }
+        assertEq(callbackCount, 1);
+        assertTrue(reactive.callbackRequestedForPolicy(30));
+    }
+
+    function testReactivationResetsLatch() public {
+        reactive.mirrorPolicy(31, ASSET, 0, 1900e8, 0, 0, 84532, 0);
+        vm.prank(SYSTEM);
+        reactive.react(_logRecord(1800e8, 0xccc1, 0));
+        assertTrue(reactive.callbackRequestedForPolicy(31));
+
+        // Deactivate -> latch cleared; re-mirror -> can trigger again.
+        reactive.deactivateMirror(31);
+        assertFalse(reactive.callbackRequestedForPolicy(31));
+        reactive.mirrorPolicy(31, ASSET, 0, 1900e8, 0, 0, 84532, 0);
+        assertFalse(reactive.callbackRequestedForPolicy(31));
+
+        vm.recordLogs();
+        vm.prank(SYSTEM);
+        reactive.react(_logRecord(1700e8, 0xddd2, 0));
+        VmSafe.Log[] memory entries = vm.getRecordedLogs();
+        uint256 callbackCount;
+        bytes32 sig = keccak256("CallbackRequested(uint256,uint256,address,uint256,uint256)");
+        for (uint256 i; i < entries.length; ++i) {
+            if (entries[i].topics[0] == sig) ++callbackCount;
+        }
+        assertEq(callbackCount, 1);
+    }
+
+    function testSyncOffClearsLatch() public {
+        IReactive.LogRecord memory syncOn = _syncLog(32, ASSET, 0, 1900e8, 0, 0, 84532, 0, true, 0xe1);
+        vm.prank(SYSTEM);
+        reactive.react(syncOn);
+        vm.prank(SYSTEM);
+        reactive.react(_logRecord(1800e8, 0xe2, 0));
+        assertTrue(reactive.callbackRequestedForPolicy(32));
+
+        IReactive.LogRecord memory syncOff = _syncLog(32, ASSET, 0, 1900e8, 0, 0, 84532, 0, false, 0xe3);
+        vm.prank(SYSTEM);
+        reactive.react(syncOff);
+        assertFalse(reactive.callbackRequestedForPolicy(32));
     }
 }

@@ -28,8 +28,12 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
 
     uint256 public nextPolicyId = 1;
     mapping(uint256 => ProtectionTypes.Policy) public policies;
-    mapping(address => uint256[]) private _policiesByAsset; // monitoredAsset => policy ids (all, incl. terminal)
-    mapping(uint256 => bool) private _activeByAsset; // id => in list (for removal simplicity we keep ids and check status)
+    /// @notice monitoredAsset => ids of ACTIVE policies only. Terminal and
+    ///         deactivated policies are removed via swap-and-pop, so evaluation
+    ///         cost stays bounded by MAX_POLICIES_PER_ASSET regardless of history.
+    mapping(address => uint256[]) private _policiesByAsset;
+    /// @notice policyId => index+1 in _policiesByAsset[monitoredAsset]; 0 = not in list.
+    mapping(uint256 => uint256) private _activeIndex;
     /// @notice monitoredAsset => count of non-terminal policies (CREATED/ACTIVE/TRIGGERED).
     /// @dev Enforces MAX_POLICIES_PER_ASSET against live policies only, not history.
     mapping(address => uint256) private _livePolicyCount;
@@ -98,6 +102,8 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         if (p.protectedAmount == 0) revert ProtectionErrors.InvalidAmount();
         if (p.destinationChainId == 0) revert ProtectionErrors.UnsupportedChain();
         if (executorForChain[p.destinationChainId] == address(0)) revert ProtectionErrors.UnsupportedChain();
+        if (p.action != ProtectionTypes.ProtectionAction.PROTECTED_EXIT) revert ProtectionErrors.InvalidAction();
+        if (p.expiresAt != 0 && p.expiresAt <= block.timestamp) revert ProtectionErrors.PolicyExpired();
         _validateTrigger(p);
         // The protected amount must be backed by the owner's unreserved vault balance.
         if (vault.availableBalance(p.owner) < p.protectedAmount) revert ProtectionErrors.InsufficientBalance();
@@ -107,11 +113,11 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         p.status = ProtectionTypes.PolicyStatus.ACTIVE;
         p.createdAt = uint64(block.timestamp);
         policies[id] = p;
-        _policiesByAsset[p.monitoredAsset].push(id);
         if (_livePolicyCount[p.monitoredAsset] >= MAX_POLICIES_PER_ASSET) {
             revert PolicyLimitReached();
         }
         _livePolicyCount[p.monitoredAsset]++;
+        _addActivePolicy(policies[id]);
         vault.reserve(p.owner, p.protectedAmount);
         emit PolicyCreated(id, msg.sender, p.asset, uint8(p.triggerType));
         emit PolicyActivated(id);
@@ -123,6 +129,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         if (p.owner != msg.sender) revert ProtectionErrors.NotOwner();
         if (p.status != ProtectionTypes.PolicyStatus.ACTIVE) revert ProtectionErrors.PolicyNotActive();
         p.status = ProtectionTypes.PolicyStatus.CREATED;
+        _removeActivePolicy(p);
         emit PolicyDeactivated(id);
         _emitMirrorSync(p, false);
     }
@@ -133,6 +140,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         if (p.status != ProtectionTypes.PolicyStatus.CREATED) revert ProtectionErrors.InvalidStatusTransition();
         if (p.expiresAt != 0 && block.timestamp > p.expiresAt) revert ProtectionErrors.PolicyExpired();
         p.status = ProtectionTypes.PolicyStatus.ACTIVE;
+        _addActivePolicy(policies[id]);
         emit PolicyActivated(id);
         _emitMirrorSync(p, true);
     }
@@ -147,8 +155,30 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         }
         p.status = ProtectionTypes.PolicyStatus.CANCELLED;
         _livePolicyCount[p.monitoredAsset]--;
+        _removeActivePolicy(p);
         vault.release(p.owner, p.protectedAmount);
         emit PolicyCancelled(id);
+        _emitMirrorSync(p, false);
+    }
+
+    /// @notice Permissionlessly expire a policy past its expiresAt, releasing the
+    ///         owner's reserved vault balance. Needed because the Reactive contract
+    ///         stops evaluating expired policies, so no callback will ever arrive
+    ///         to trigger the expiry branch inside executePolicy().
+    /// @dev Handles both ACTIVE and deactivated (CREATED) policies; terminal
+    ///      policies revert. Safe to call by anyone — it only releases funds.
+    function expirePolicy(uint256 id) external {
+        ProtectionTypes.Policy storage p = policies[id];
+        if (p.id == 0) revert ProtectionErrors.PolicyNotFound();
+        if (p.expiresAt == 0 || block.timestamp <= p.expiresAt) revert ProtectionErrors.NotExpired();
+        if (p.status != ProtectionTypes.PolicyStatus.CREATED && p.status != ProtectionTypes.PolicyStatus.ACTIVE) {
+            revert ProtectionErrors.InvalidStatusTransition();
+        }
+        p.status = ProtectionTypes.PolicyStatus.EXPIRED;
+        _livePolicyCount[p.monitoredAsset]--;
+        _removeActivePolicy(p);
+        vault.release(p.owner, p.protectedAmount);
+        emit PolicyExpired(id);
         _emitMirrorSync(p, false);
     }
 
@@ -200,6 +230,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
             // Persist the expiry transition — a revert here would roll it back.
             p.status = ProtectionTypes.PolicyStatus.EXPIRED;
             _livePolicyCount[p.monitoredAsset]--;
+            _removeActivePolicy(p);
             vault.release(p.owner, p.protectedAmount);
             emit PolicyExpired(id);
             _emitMirrorSync(p, false);
@@ -216,6 +247,7 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
         p.status = ProtectionTypes.PolicyStatus.EXECUTED;
         p.executedAt = uint64(block.timestamp);
         _livePolicyCount[p.monitoredAsset]--;
+        _removeActivePolicy(p);
 
         // Release this policy's reservation, then move protected funds to the recipient.
         // createPolicy guarantees p.asset == vault.asset(), so the exit always executes.
@@ -245,6 +277,29 @@ contract ProtectionManager is ReentrancyGuard, Pausable, Ownable {
     }
 
     // ---------- Internal ----------
+
+    /// @dev Add a policy id to the per-asset active list (swap-free append).
+    function _addActivePolicy(ProtectionTypes.Policy storage p) internal {
+        if (_activeIndex[p.id] != 0) return; // already listed
+        uint256[] storage list = _policiesByAsset[p.monitoredAsset];
+        list.push(p.id);
+        _activeIndex[p.id] = list.length; // index+1
+    }
+
+    /// @dev Remove a policy id from the per-asset active list via swap-and-pop.
+    ///      No-op when the policy is not in the list (e.g. CREATED status).
+    function _removeActivePolicy(ProtectionTypes.Policy storage p) internal {
+        uint256 idxPlusOne = _activeIndex[p.id];
+        if (idxPlusOne == 0) return;
+        uint256 idx = idxPlusOne - 1;
+        uint256[] storage list = _policiesByAsset[p.monitoredAsset];
+        uint256 lastIdx = list.length - 1;
+        uint256 lastId = list[lastIdx];
+        list[idx] = lastId;
+        _activeIndex[lastId] = idx + 1;
+        list.pop();
+        _activeIndex[p.id] = 0;
+    }
 
     function _emitMirrorSync(ProtectionTypes.Policy memory p, bool active) internal {
         emit PolicyMirrorSync(

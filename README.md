@@ -2,7 +2,7 @@
 
 **Autonomous Cross-Chain DeFi Protection Protocol** — Reactive Omni Buildathon, "Every Second Counts" track.
 
-> Protect your positions. React in milliseconds. Stay in control.
+> Protect your positions. React autonomously. Stay in control.
 
 PulseGuard lets DeFi users configure programmable protection policies (stop-loss, take-profit, max drawdown, emergency) that are executed automatically by **Reactive Network** — no bots, no polling, no trusted backend.
 
@@ -50,7 +50,7 @@ pulseguard/
 # Contracts
 cd contracts
 forge install   # if needed
-forge test      # 49 tests
+forge test      # 60 tests
 
 # Frontend
 pnpm install
@@ -60,12 +60,12 @@ pnpm --filter web dev
 
 ## Status
 
-- ✅ Smart contracts implemented + 49 Foundry tests passing
+- ✅ Smart contracts implemented + 60 Foundry tests passing
 - ✅ Reactive Omni integration (`AbstractReactive`/`AbstractCallback`, `requestCallbackV_1_0`)
 - ✅ Deployed on Base Sepolia, Unichain Sepolia, and Reactive Lasna (latest 2026-11-17) — see `deployments/*.json`
 - ✅ Next.js frontend: landing, dashboard, vault, policies, marketplace, simulator, activity (multi-chain, paginated, latency badges), settings
 - ✅ Production build passes (`pnpm --filter web build`)
-- ✅ Full demo flow rehearsed end-to-end (Base + Unichain destinations, ~2s latency) — evidence in `docs/DEMO_SCRIPT.md`
+- ✅ Full demo flow rehearsed end-to-end (Base + Unichain destinations) — evidence in `docs/DEMO_SCRIPT.md`. Latency varies by leg: Base→Lasna event detection, Lasna→destination callback delivery, and (for Unichain policies) the manual `SettlementRelay.settle()` step are measured separately in the demo evidence — they are not a single end-to-end figure.
 
 ## Disclaimer
 

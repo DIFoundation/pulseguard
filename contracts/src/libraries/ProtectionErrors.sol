@@ -13,6 +13,7 @@ library ProtectionErrors {
     error InvalidAsset();
     error InvalidRecipient();
     error PolicyExpired();
+    error NotExpired();
     error TriggerNotMet();
     error AlreadyExecuted();
     error Paused();
@@ -24,4 +25,5 @@ library ProtectionErrors {
     error Unauthorized();
     error UnsupportedAsset();
     error InsufficientBalance();
+    error InvalidAction();
 }

@@ -40,7 +40,9 @@ export function useVault() {
   const { writeContract, writeContractAsync, data: txHash, isPending, error } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash: txHash });
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
-  const [flowStep, setFlowStep] = useState<"idle" | "approving" | "depositing">("idle");
+  const [flowStep, setFlowStep] = useState<
+    "idle" | "checking" | "approving" | "approval-confirmed" | "depositing" | "deposit-confirmed"
+  >("idle");
   const [flowHash, setFlowHash] = useState<`0x${string}` | undefined>();
   const [flowError, setFlowError] = useState<string | undefined>();
   const flowReceipt = useWaitForTransactionReceipt({ hash: flowHash });
@@ -60,6 +62,7 @@ export function useVault() {
     if (!publicClient || !address || amount === 0n) return;
     setFlowError(undefined);
     try {
+      setFlowStep("checking");
       const current = (await publicClient.readContract({
         abi: erc20Abi,
         address: tokenAddr,
@@ -78,6 +81,7 @@ export function useVault() {
         });
         setFlowHash(approveHash);
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        setFlowStep("approval-confirmed");
       }
 
       setFlowStep("depositing");
@@ -90,6 +94,12 @@ export function useVault() {
       });
       setFlowHash(depositHash);
       await publicClient.waitForTransactionReceipt({ hash: depositHash });
+      setFlowStep("deposit-confirmed");
+      // Refresh balances immediately instead of waiting for the poll interval.
+      void balance.refetch();
+      void availableBalance.refetch();
+      void totalDeposits.refetch();
+      void allowance.refetch();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       // User rejection is not an error worth surfacing; real failures are.
@@ -182,6 +192,9 @@ export function usePolicies() {
     writeContract({ abi: ProtectionManagerAbi, address: managerAddr, functionName: "deactivatePolicy", args: [id], chainId: baseSepolia.id });
   const cancel = (id: bigint) =>
     writeContract({ abi: ProtectionManagerAbi, address: managerAddr, functionName: "cancelPolicy", args: [id], chainId: baseSepolia.id });
+  // Permissionless on-chain; exposed here so owners can reclaim expired reservations.
+  const expire = (id: bigint) =>
+    writeContract({ abi: ProtectionManagerAbi, address: managerAddr, functionName: "expirePolicy", args: [id], chainId: baseSepolia.id });
 
   // Settle an attested/triggered policy on Base via the SettlementRelay
   // (registered as executorForChain for attestation-only destinations like Unichain).
@@ -195,7 +208,7 @@ export function usePolicies() {
       chainId: baseSepolia.id,
     });
 
-  return { nextId, createPolicy, deactivate, cancel, settle, isPending, txHash, receipt, error };
+  return { nextId, createPolicy, deactivate, cancel, expire, settle, isPending, txHash, receipt, error };
 }
 
 export function usePriceFeed() {

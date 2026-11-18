@@ -45,9 +45,17 @@ contract PulseGuardReactive is AbstractReactive {
     uint256 public policySyncTopic0; // PolicyMirrorSync topic0
 
     mapping(uint256 => MirrorPolicy) public mirrorPolicies;
+    /// @notice monitoredAsset => ids of ACTIVE mirrors only. Inactive mirrors are
+    ///         removed via swap-and-pop so react() stays bounded by live policy count.
     mapping(address => uint256[]) private _mirrorByAsset;
-    mapping(uint256 => bool) private _mirrorIndexed; // policyId => already in _mirrorByAsset
+    /// @notice policyId => index+1 in _mirrorByAsset[monitoredAsset]; 0 = not in list.
+    mapping(uint256 => uint256) private _mirrorIndex;
     mapping(bytes32 => bool) private _callbackRequested;
+    /// @notice policyId => a callback was already requested this activation cycle.
+    ///         Prevents repeat callback requests on every subsequent price update
+    ///         while the policy stays ACTIVE (e.g. Unichain attestation recorded but
+    ///         Base settlement still pending). Reset when the mirror goes inactive.
+    mapping(uint256 => bool) public callbackRequestedForPolicy;
 
     event PolicyMirrored(uint256 indexed id, address monitoredAsset);
     event PolicyMirrorRemoved(uint256 indexed id);
@@ -132,10 +140,7 @@ contract PulseGuardReactive is AbstractReactive {
             expiresAt: expiresAt,
             active: true
         });
-        if (!_mirrorIndexed[id]) {
-            _mirrorIndexed[id] = true;
-            _mirrorByAsset[monitoredAsset].push(id);
-        }
+        _addMirror(id, monitoredAsset);
         emit PolicyMirrored(id, monitoredAsset);
     }
 
@@ -144,8 +149,17 @@ contract PulseGuardReactive is AbstractReactive {
     ///      events (active=false) delivered by the Reactive Network subscription.
     ///      DEPRECATED: use the automatic PolicyMirrorSync flow instead.
     function deactivateMirror(uint256 id) external onlyOwner {
-        mirrorPolicies[id].active = false;
+        MirrorPolicy storage mp = mirrorPolicies[id];
+        mp.active = false;
+        _removeMirror(mp);
+        callbackRequestedForPolicy[id] = false; // allow re-trigger after reactivation
         emit PolicyMirrorRemoved(id);
+    }
+
+    /// @notice Owner escape hatch: clear the per-policy callback latch so a policy
+    ///         can request a callback again (e.g. after a failed callback delivery).
+    function resetCallbackLatch(uint256 id) external onlyOwner {
+        callbackRequestedForPolicy[id] = false;
     }
 
     function setManager(address manager_) external onlyOwner {
@@ -187,10 +201,14 @@ contract PulseGuardReactive is AbstractReactive {
             // Don't burn the dedup slot if no executor is registered — the policy
             // may become deliverable later once setExecutorForChain is called.
             if (executorForChain[mp.destinationChainId] == address(0)) continue;
+            // One callback request per activation cycle — later price updates for
+            // the same still-active policy must not burn callback gas again.
+            if (callbackRequestedForPolicy[id]) continue;
 
             bytes32 dedup = keccak256(abi.encode(log_.txHash, log_.logIndex, id));
             if (_callbackRequested[dedup]) continue;
             _callbackRequested[dedup] = true;
+            callbackRequestedForPolicy[id] = true;
 
             emit TriggerEvaluated(id, price, log_.txHash, log_.logIndex);
             _requestCallback(mp, id, price, log_);
@@ -228,15 +246,36 @@ contract PulseGuardReactive is AbstractReactive {
             mp.destinationChainId = destinationChainId;
             mp.expiresAt = expiresAt;
             mp.active = true;
-            if (!_mirrorIndexed[id]) {
-                _mirrorIndexed[id] = true;
-                _mirrorByAsset[monitoredAsset].push(id);
-            }
+            _addMirror(id, monitoredAsset);
             emit PolicyMirrored(id, monitoredAsset);
         } else {
             mp.active = false;
+            _removeMirror(mp);
+            callbackRequestedForPolicy[id] = false; // reactivation may trigger again
             emit PolicyMirrorRemoved(id);
         }
+    }
+
+    /// @dev Add a policy id to the per-asset active mirror list.
+    function _addMirror(uint256 id, address monitoredAsset) internal {
+        if (_mirrorIndex[id] != 0) return; // already listed
+        uint256[] storage list = _mirrorByAsset[monitoredAsset];
+        list.push(id);
+        _mirrorIndex[id] = list.length; // index+1
+    }
+
+    /// @dev Remove a policy id from the per-asset active mirror list via swap-and-pop.
+    function _removeMirror(MirrorPolicy storage mp) internal {
+        uint256 idxPlusOne = _mirrorIndex[mp.id];
+        if (idxPlusOne == 0) return;
+        uint256 idx = idxPlusOne - 1;
+        uint256[] storage list = _mirrorByAsset[mp.monitoredAsset];
+        uint256 lastIdx = list.length - 1;
+        uint256 lastId = list[lastIdx];
+        list[idx] = lastId;
+        _mirrorIndex[lastId] = idx + 1;
+        list.pop();
+        _mirrorIndex[mp.id] = 0;
     }
 
     function _isTriggered(MirrorPolicy storage mp, uint256 price) internal view returns (bool) {

@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {PulseGuardReactive} from "../src/reactive/PulseGuardReactive.sol";
 import {ProtectionExecutor} from "../src/protection/ProtectionExecutor.sol";
 import {CrossChainExecutor} from "../src/protection/CrossChainExecutor.sol";
+import {SettlementRelay} from "../src/protection/SettlementRelay.sol";
 import {ProtectionManager} from "../src/protection/ProtectionManager.sol";
 import {ProtectionTypes} from "../src/libraries/ProtectionTypes.sol";
 import {MockPriceFeed} from "../src/oracle/MockPriceFeed.sol";
@@ -139,9 +140,67 @@ contract ProtectionIntegrationTest is Test {
             blockNumber: 1, opCode: 2, blockHash: 0, txHash: txHash, logIndex: logIndex
         });
     }
+    /// @dev Full cross-chain path: origin price event -> Reactive mirror eval ->
+    ///      callback request -> Unichain CrossChainExecutor attestation ->
+    ///      Base SettlementRelay -> ProtectionManager.executePolicy -> Vault exit.
+    ///      Settlement is permissionless and does NOT require the attestation;
+    ///      the attestation proves the Reactive callback reached Unichain.
+    function testCrossChainSettlementFlow() public {
+        SettlementRelay relay = new SettlementRelay(address(manager));
+        vm.prank(owner);
+        manager.setExecutorForChain(UNI_CHAIN, address(relay)); // relay settles on Base
+
+        // 1. Create a Unichain-destination stop-loss policy.
+        ProtectionTypes.Policy memory p = ProtectionTypes.Policy({
+            id: 0, owner: user, asset: address(token), monitoredAsset: ASSET,
+            destinationChainId: UNI_CHAIN, triggerType: ProtectionTypes.TriggerType.STOP_LOSS,
+            threshold: 1900e8, referencePrice: 0, maxDrawdownBps: 0,
+            protectedAmount: 10 ether, recipient: recipient,
+            action: ProtectionTypes.ProtectionAction.PROTECTED_EXIT,
+            status: ProtectionTypes.PolicyStatus.CREATED, createdAt: 0, expiresAt: 0, executedAt: 0
+        });
+        vm.prank(user);
+        uint256 id = manager.createPolicy(p);
+
+        // 2. Mirror sync -> reactive stores the policy.
+        IReactive.LogRecord memory syncLog = IReactive.LogRecord({
+            chainId: BASE_CHAIN,
+            contractAddress: address(manager),
+            topic0: uint256(keccak256("PolicyMirrorSync(uint256,address,uint8,uint256,uint256,uint256,uint256,uint64,bool)")),
+            topic1: id,
+            topic2: uint256(uint160(ASSET)),
+            topic3: 0,
+            data: abi.encode(uint8(ProtectionTypes.TriggerType.STOP_LOSS), 1900e8, 0, 0, UNI_CHAIN, uint64(0), true),
+            blockNumber: 1, opCode: 3, blockHash: 0, txHash: 0xaaa, logIndex: 0
+        });
+        vm.prank(SYSTEM);
+        reactive.react(syncLog);
+
+        // 3. Triggering price -> reactive requests callback to Unichain executor.
+        vm.prank(operator);
+        feed.updatePrice(ASSET, 1800e8);
+        vm.prank(SYSTEM);
+        reactive.react(_log(1800e8, 0x222, 0));
+        assertTrue(reactive.callbackRequestedForPolicy(id));
+
+        // 4. Unichain callback delivers attestation to CrossChainExecutor.
+        vm.prank(address(proxy));
+        uniExecutor.recordProtection(reactiveAddr, id, 1800e8);
+        assertTrue(uniExecutor.executedPolicies(id));
+        assertTrue(uniExecutor.verifyAttestation(id));
+
+        // 5. Anyone settles on Base via the relay — no attestation proof required.
+        vm.prank(makeAddr("rando"));
+        relay.settle(id);
+
+        // 6. Vault exit executed; policy terminal.
+        assertEq(token.balanceOf(recipient), 10 ether);
+        assertEq(uint8(manager.getPolicy(id).status), uint8(ProtectionTypes.PolicyStatus.EXECUTED));
+    }
 }
 
 contract MockCallbackProxy is IPayable {
     function debt(address) external pure returns (uint256) { return 0; }
     receive() external payable {}
+
 }

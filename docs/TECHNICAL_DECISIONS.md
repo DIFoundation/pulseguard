@@ -7,14 +7,15 @@ Use `AbstractReactive` / `AbstractCallback` from `reactive-lib-omni` (master). N
 Vault + ProtectionManager live on Base Sepolia. The reactive contract on Lasna subscribes to Base Sepolia `PriceUpdated` events and requests a callback **back to Base Sepolia** (`ProtectionExecutor`), so the protection action can actually move vault assets. A second callback targets Unichain Sepolia, where `CrossChainExecutor` records a verifiable on-chain attestation of the protection event (`getRecord`/`verifyAttestation`) — it never claims to move Base assets.
 
 ## TD-3: Policy state lives in ProtectionManager (origin chain)
-The reactive contract is stateless w.r.t. policies except a dedup set. On `react()` it decodes the price, checks each active policy's threshold via view calls to ProtectionManager, and requests callbacks only for newly triggered policies. The executor re-validates everything on-chain (policy active, not executed, threshold still met) — the reactive contract is not trusted.
+ProtectionManager remains the source of truth. `PulseGuardReactive` keeps an **event-synced mirror** of policies (via `PolicyMirrorSync`) because it cannot do cross-chain view calls — the mirror stores only *active* policies in bounded per-asset arrays (swap-and-pop removal, capped by `MAX_POLICIES_PER_ASSET`). On `react()` it decodes the price, evaluates each mirrored policy's threshold locally, and requests callbacks only for newly triggered policies. The executor/relay re-validates everything on-chain — the reactive contract is not trusted; mirror drift only causes a missed or extra callback request, never an unauthorized execution.
 
 ## TD-4: Executor authentication
 `ProtectionExecutor` inherits `AbstractCallback`, constructor takes `(callbackProxy, callbackSender=PulseGuardReactive)`. Every callback method uses `onlyServiceProvider onlyCallbackSender(reactive_)`. Payload first arg = `address(0)` placeholder.
 
 ## TD-5: Dedup / replay
-- Reactive side: `mapping(bytes32 => bool) _callbackRequested` keyed by `keccak256(chainId, txHash, logIndex, policyId)`.
-- Executor side: policy status transition ACTIVE→EXECUTED is atomic; second callback reverts `PolicyNotActive`.
+- Reactive side: `mapping(bytes32 => bool) _callbackRequested` keyed by `keccak256(txHash, logIndex, policyId)` **plus** a per-policy latch `callbackRequestedForPolicy` — one callback request per activation cycle, so repeated price updates while a policy stays ACTIVE don't burn callback gas. The latch resets when the mirror goes inactive (deactivate/cancel/expire/sync-off) and on reactivation.
+- Executor side: policy status transition ACTIVE→EXECUTED is atomic; second callback/settle reverts `PolicyNotActive`.
+- Settlement side: `SettlementRelay.settle()` is permissionless — anyone may settle an attested Unichain policy on Base; the relay only forwards to `manager.executePolicy`, which re-validates status + live trigger. The Unichain attestation (`CrossChainExecutor.executedPolicies`) is evidence the callback fired, not a settlement precondition.
 
 ## TD-6: Vault custody
 Non-custodial ERC-4626-style vault: users deposit ERC-20, balances tracked per user. Protection action = executor calls `vault.emergencyWithdraw(policyId)` which burns the user's vault shares and transfers underlying to a user-set `protectedRecipient` — never to an arbitrary address. Executor cannot withdraw to itself.

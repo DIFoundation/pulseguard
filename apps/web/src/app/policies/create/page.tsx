@@ -7,7 +7,7 @@ import { PageHeader, Card, Badge } from "@/components/ui";
 import { usePolicies, useVault } from "@/hooks/useContracts";
 import { deployments, isConfigured, baseSepolia, unichainSepolia } from "@pulseguard/config";
 import { useAccount } from "wagmi";
-import { parseEther, parseUnits } from "viem";
+import { parseUnits } from "viem";
 import { formatTokenAmount } from "@/lib/format";
 
 const TRIGGERS = [
@@ -16,6 +16,35 @@ const TRIGGERS = [
   { value: 2, label: "Max Drawdown", desc: "Triggers when loss from reference exceeds max drawdown" },
   { value: 3, label: "Emergency", desc: "Triggers on explicit emergency price condition" },
 ];
+
+const PRICE_DECIMALS = 8;
+const TOKEN_DECIMALS = 18;
+
+/// @dev Parse a positive decimal string into wei-like units, enforcing max
+///      fractional precision. Returns null for empty/invalid/non-finite input
+///      (e.g. "abc" -> NaN must never slip through as a valid value).
+function parsePositiveDecimal(value: string, decimals: number): bigint | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  if (!Number.isFinite(Number(trimmed)) || Number(trimmed) <= 0) return null;
+  const frac = trimmed.includes(".") ? trimmed.split(".")[1] : "";
+  if (frac.length > decimals) return null;
+  try {
+    const parsed = parseUnits(trimmed, decimals);
+    return parsed > 0n ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/// @dev Parse an optional positive number (expiry days). Empty -> 0n (no expiry).
+function parseOptionalPositive(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return 0;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
 
 export default function CreatePolicyPage() {
   return (
@@ -70,25 +99,45 @@ function CreatePolicyForm() {
   const asset = deployments.testToken.address as `0x${string}`;
 
 
+  // ---------- Validation (computed every render so errors show live) ----------
+  const thresholdVal = parsePositiveDecimal(threshold, PRICE_DECIMALS);
+  const refVal = parsePositiveDecimal(referencePrice, PRICE_DECIMALS);
+  const amountVal = parsePositiveDecimal(amount, TOKEN_DECIMALS);
+  const drawdownPct = parseOptionalPositive(maxDrawdownPct);
+  const expiryDays = parseOptionalPositive(expiresInDays);
+
+  const errors: Record<string, string> = {};
+  if (triggerType !== 2) {
+    if (threshold.trim() === "") errors.threshold = "Threshold price is required for this trigger.";
+    else if (thresholdVal === null) errors.threshold = `Enter a positive price with at most ${PRICE_DECIMALS} decimals.`;
+  } else {
+    if (referencePrice.trim() === "") errors.referencePrice = "Reference price is required for Max Drawdown.";
+    else if (refVal === null) errors.referencePrice = `Enter a positive price with at most ${PRICE_DECIMALS} decimals.`;
+    if (maxDrawdownPct.trim() === "") errors.maxDrawdownPct = "Max drawdown is required for Max Drawdown.";
+    else if (drawdownPct === null || drawdownPct >= 100) errors.maxDrawdownPct = "Enter a drawdown between 0 and 100%.";
+  }
+  if (amount.trim() === "") errors.amount = "Protected amount is required.";
+  else if (amountVal === null) errors.amount = `Enter a positive amount with at most ${TOKEN_DECIMALS} decimals.`;
+  if (expiresInDays.trim() !== "" && expiryDays === null) errors.expiresInDays = "Enter a positive number of days.";
+
+  const availData = availableBalance.data;
+  const exceedsBalance = availData !== undefined && availData !== null && amountVal !== null && amountVal > (availData as bigint);
+  if (exceedsBalance) errors.amount = "Protected amount exceeds your available (unreserved) vault balance.";
+
+  const hasErrors = Object.keys(errors).length > 0;
+  const canSubmit =
+    isConnected &&
+    isConfigured("protectionManager") &&
+    !hasErrors;
+
   const handleSubmit = () => {
-    if (!address || !asset || asset === "0x") return;
-    let thresholdWei: bigint, refWei: bigint, drawdownBps: bigint, amountWei: bigint, expiresAt: bigint;
-    try {
-      thresholdWei = threshold ? parseUnits(threshold, 8) : 0n;
-      refWei = referencePrice ? parseUnits(referencePrice, 8) : 0n;
-      drawdownBps = maxDrawdownPct ? BigInt(Math.round(parseFloat(maxDrawdownPct) * 100)) : 0n;
-      amountWei = amount ? parseEther(amount) : 0n;
-      expiresAt = expiresInDays ? BigInt(Math.floor(Date.now() / 1000) + Math.floor(parseFloat(expiresInDays) * 86400)) : 0n;
-    } catch {
-      return; // invalid numeric input — canSubmit guards the common cases
-    }
-    // Threshold is required for price-based triggers (SL/TP/EMG); drawdown needs ref+bps.
-    if (triggerType !== 2 && thresholdWei === 0n) return;
-    if (triggerType === 2 && (refWei === 0n || drawdownBps === 0n || drawdownBps >= 10000n)) return;
-    if (amountWei === 0n) return;
-    // Protected amount must not exceed the unreserved vault balance.
-    const avail = availableBalance.data;
-    if (avail !== undefined && avail !== null && amountWei > (avail as bigint)) return;
+    if (!address || !asset || asset === "0x" || hasErrors) return;
+    if (thresholdVal === null && triggerType !== 2) return;
+    if (triggerType === 2 && (refVal === null || drawdownPct === null || drawdownPct >= 100)) return;
+    if (amountVal === null || expiryDays === null) return;
+
+    const drawdownBps = triggerType === 2 && drawdownPct !== null ? BigInt(Math.round(drawdownPct * 100)) : 0n;
+    const expiresAt = expiryDays > 0 ? BigInt(Math.floor(Date.now() / 1000) + Math.floor(expiryDays * 86400)) : 0n;
 
     createPolicy({
       owner: address,
@@ -96,28 +145,15 @@ function CreatePolicyForm() {
       monitoredAsset: feedAsset,
       destinationChainId: BigInt(destChain),
       triggerType,
-      threshold: thresholdWei,
-      referencePrice: refWei,
+      threshold: triggerType === 2 ? 0n : (thresholdVal ?? 0n),
+      referencePrice: triggerType === 2 ? (refVal ?? 0n) : 0n,
       maxDrawdownBps: drawdownBps,
-      protectedAmount: amountWei,
+      protectedAmount: amountVal,
       recipient: address,
       action: 0,
       expiresAt,
     });
   };
-
-  const amountWei = (() => { try { return amount ? parseEther(amount) : 0n; } catch { return 0n; } })();
-  const availData = availableBalance.data;
-  const exceedsBalance = availData !== undefined && availData !== null && amountWei > 0n && amountWei > (availData as bigint);
-  const thresholdMissing = triggerType !== 2 && (!threshold || parseFloat(threshold) <= 0);
-  const canSubmit =
-    isConnected &&
-    isConfigured("protectionManager") &&
-    amount !== "" &&
-    amountWei > 0n &&
-    !thresholdMissing &&
-    !exceedsBalance &&
-    (triggerType !== 2 || (referencePrice !== "" && maxDrawdownPct !== ""));
 
   return (
     <div className="min-h-screen">
@@ -157,22 +193,26 @@ function CreatePolicyForm() {
               <div>
                 <label className="text-sm text-foreground/60">Threshold price (USD, 8 decimals)</label>
                 <input value={threshold} onChange={(e) => setThreshold(e.target.value)} placeholder="1900.00" className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+                {errors.threshold && <p className="mt-1 text-xs text-danger">{errors.threshold}</p>}
               </div>
               {triggerType === 2 && (
                 <>
                   <div>
                     <label className="text-sm text-foreground/60">Reference price</label>
                     <input value={referencePrice} onChange={(e) => setReferencePrice(e.target.value)} placeholder="2000.00" className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+                    {errors.referencePrice && <p className="mt-1 text-xs text-danger">{errors.referencePrice}</p>}
                   </div>
                   <div>
                     <label className="text-sm text-foreground/60">Max drawdown (%)</label>
                     <input value={maxDrawdownPct} onChange={(e) => setMaxDrawdownPct(e.target.value)} placeholder="5" className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+                    {errors.maxDrawdownPct && <p className="mt-1 text-xs text-danger">{errors.maxDrawdownPct}</p>}
                   </div>
                 </>
               )}
               <div>
                 <label className="text-sm text-foreground/60">Protected amount</label>
                 <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="10.0" className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+                {errors.amount && <p className="mt-1 text-xs text-danger">{errors.amount}</p>}
               </div>
               <div>
                 <label className="text-sm text-foreground/60">Destination chain</label>
@@ -184,6 +224,7 @@ function CreatePolicyForm() {
               <div>
                 <label className="text-sm text-foreground/60">Expires in (days, optional)</label>
                 <input value={expiresInDays} onChange={(e) => setExpiresInDays(e.target.value)} placeholder="30" className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+                {errors.expiresInDays && <p className="mt-1 text-xs text-danger">{errors.expiresInDays}</p>}
               </div>
             </div>
           </Card>
@@ -199,12 +240,6 @@ function CreatePolicyForm() {
                 <div className="flex justify-between"><span className="text-foreground/60">Available balance</span><span>{formatTokenAmount(availData as bigint)}</span></div>
               )}
             </div>
-            {exceedsBalance && (
-              <p className="mt-3 text-sm text-danger">Protected amount exceeds your available (unreserved) vault balance.</p>
-            )}
-            {thresholdMissing && (
-              <p className="mt-3 text-sm text-danger">A positive threshold price is required for this trigger.</p>
-            )}
             <p className="mt-4 text-xs text-foreground/50">
               {destChain === 84532
                 ? "On trigger, Reactive Network requests an authenticated callback and the Base executor performs a protected vault exit automatically — funds go to your recipient, never to an arbitrary address."

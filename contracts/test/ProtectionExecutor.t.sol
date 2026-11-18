@@ -115,7 +115,6 @@ contract ProtectionExecutorTest is Test {
     }
 
     function testExpiredCallbackDoesNotEmitSuccess() public {
-        vm.warp(100);
         ProtectionTypes.Policy memory p = ProtectionTypes.Policy({
             id: 0, owner: user, asset: address(token), monitoredAsset: ASSET,
             destinationChainId: BASE_CHAIN, triggerType: ProtectionTypes.TriggerType.STOP_LOSS,
@@ -126,6 +125,7 @@ contract ProtectionExecutorTest is Test {
         });
         vm.prank(user);
         uint256 id = manager.createPolicy(p);
+        vm.warp(100); // now past expiresAt=50
         vm.prank(operator);
         feed.updatePrice(ASSET, 100e8);
 

@@ -63,7 +63,7 @@ abi.encodeWithSignature("recordProtection(address,uint256,uint256)", address(0),
 2. Deploy `PulseGuardReactive` on Lasna with `(originChainId, priceFeed, priceTopic0, manager, policySyncTopic0)` — constructor subscribes to both price and policy-sync events.
 3. Deploy `ProtectionExecutor` on Base Sepolia with `(baseProxy, reactiveAddress, manager)`.
 4. Deploy `CrossChainExecutor` on Unichain Sepolia with `(uniProxy, reactiveAddress)`.
-5. `manager.setExecutorForChain(84532, baseExecutor)`, `setExecutorForChain(1301, uniExecutor)`, `setReactiveContract(reactive)`.
+5. `manager.setExecutorForChain(84532, baseExecutor)`, `setExecutorForChain(1301, settlementRelay)`, `setReactiveContract(reactive)`. Note: the Base manager authorizes the **SettlementRelay** for chain 1301 — the relay (not the Unichain executor) is what calls `executePolicy` on Base. `ConfigureReactive.s.sol` separately registers the actual Unichain `CrossChainExecutor` as the reactive contract's callback destination.
 6. `vault.setExecutor(manager)`.
 7. `reactive.setExecutorForChain(...)` for each destination.
 8. Fund: reactive contract with REACT on Lasna; executors with native token on their chains.

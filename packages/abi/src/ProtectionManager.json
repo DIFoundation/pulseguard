@@ -263,6 +263,19 @@
   },
   {
     "type": "function",
+    "name": "expirePolicy",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "getPolicy",
     "inputs": [
       {
@@ -909,6 +922,11 @@
   },
   {
     "type": "error",
+    "name": "InvalidAction",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvalidAmount",
     "inputs": []
   },
@@ -940,6 +958,11 @@
   {
     "type": "error",
     "name": "NotExecutor",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotExpired",
     "inputs": []
   },
   {

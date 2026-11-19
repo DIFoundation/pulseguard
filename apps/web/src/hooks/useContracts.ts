@@ -2,7 +2,7 @@
 
 import { useConnection, usePublicClient, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { baseSepolia, deployments, isConfigured } from "@pulseguard/config";
-import { PulseGuardVaultAbi, ProtectionManagerAbi, MockPriceFeedAbi, SettlementRelayAbi } from "@pulseguard/abi";
+import { PulseGuardVaultAbi, ProtectionManagerAbi, MockPriceFeedAbi, SettlementRelayAbi, MockErc20Abi } from "@pulseguard/abi";
 import { erc20Abi } from "viem";
 import { useState } from "react";
 
@@ -208,6 +208,29 @@ export function usePolicies() {
     });
 
   return { nextId, createPolicy, deactivate, cancel, expire, settle, isPending, txHash, receipt, error };
+}
+
+/// @notice Test-only helper: mint pTST to the connected wallet. MockERC20.mint is
+///         permissionless — this exists so judges/demo users can get tokens without
+///         a faucet. Never use with a real asset.
+export function useTestToken() {
+  const { address } = useConnection();
+  const tokenAddr = deployments.testToken.address as `0x${string}`;
+  const { writeContract, data: txHash, isPending, error } = useWriteContract();
+  const receipt = useWaitForTransactionReceipt({ hash: txHash });
+
+  const mint = (amount: bigint) => {
+    if (!address) return;
+    writeContract({
+      abi: MockErc20Abi,
+      address: tokenAddr,
+      functionName: "mint",
+      args: [address, amount],
+      chainId: baseSepolia.id,
+    });
+  };
+
+  return { mint, isPending, txHash, receipt, error, tokenAddr };
 }
 
 export function usePriceFeed() {

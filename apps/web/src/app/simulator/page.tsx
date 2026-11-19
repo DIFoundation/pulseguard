@@ -119,10 +119,14 @@ export default function SimulatorPage() {
           </Card>
         </div>
 
-        <Card className="mt-6 border-accent/30">
-          <h3 className="font-semibold">Publish Oracle Price <span className="ml-2 text-xs font-normal text-foreground/40">(operator — MockPriceFeed)</span></h3>
+        <Card className="mt-6 border-warning/30">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">Publish Oracle Price</h3>
+            <Badge tone="warning">Testnet only</Badge>
+          </div>
           <p className="mt-1 text-xs text-foreground/50">
             Publishes a real <code>PriceUpdated</code> event on Base Sepolia — this is what triggers Reactive evaluation.
+            The mock feed is <strong>permissionless</strong>: anyone can publish any price. Never use with real assets.
           </p>
           <div className="mt-4 flex flex-wrap items-end gap-3">
             <div>

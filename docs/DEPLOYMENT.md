@@ -1,15 +1,15 @@
 # Deployment
 
-## Current deployment (2026-11-18, post-review-fixes)
+## Current deployment (2026-11-19, permissionless price feed)
 
-All contracts redeployed with the code-review fixes (bounded policy arrays,
-permissionless `expirePolicy`, per-policy callback latch, `createPolicy`
-validation, corrected `Configure.s.sol` chain-1301 registration). Addresses and
-tx hashes are in `deployments/`:
+Redeployed so judges/demo users can test without operator keys:
+`MockPriceFeed.updatePrice()` is now **permissionless** (mock feed — prices are
+not market data). Cascade: new feed + manager on Base, new reactive on Lasna,
+new executors on Base/Unichain. Token and vault are unchanged.
 
-- `deployments/base-sepolia.json` — MockERC20 `0x15c0…6867`, MockPriceFeed `0x928a…8239`, PulseGuardVault `0x01f3…5bc1`, ProtectionManager `0x5d6a…43e5`, ProtectionExecutor `0x1aa4…93f9`, SettlementRelay `0x914e…8887`
-- `deployments/unichain-sepolia.json` — CrossChainExecutor `0x79ac…2dc6`
-- `deployments/reactive-lasna.json` — PulseGuardReactive `0x98bd…efce` (funded 0.3 REACT at deploy — constructor subscriptions require balance)
+- `deployments/base-sepolia.json` — MockERC20 `0x15c0…6867` (unchanged), MockPriceFeed `0x4853…7194`, PulseGuardVault `0x01f3…5bc1` (unchanged), ProtectionManager `0xED1e…0a6f`, ProtectionExecutor `0x11e3…952e`, SettlementRelay `0xe72e…5ebf`
+- `deployments/unichain-sepolia.json` — CrossChainExecutor `0x8ffd…503e`
+- `deployments/reactive-lasna.json` — PulseGuardReactive `0x5a99…0c49` (funded 0.3 REACT at deploy)
 
 Deployer: `0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67`
 

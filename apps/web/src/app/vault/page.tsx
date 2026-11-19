@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
-import { useVault } from "@/hooks/useContracts";
+import { useVault, useTestToken } from "@/hooks/useContracts";
 import { deployments, isConfigured } from "@pulseguard/config";
 import { parseEther } from "viem";
 import { formatTokenAmount, shortAddress } from "@/lib/format";
@@ -12,6 +12,7 @@ import { useAccount } from "wagmi";
 export default function VaultPage() {
   const { isConnected } = useAccount();
   const { balance, availableBalance, totalDeposits, depositWithApproval, withdraw, flowStep, flowHash, flowReceipt, flowError, isPending, txHash, receipt, error, tokenAddr } = useVault();
+  const { mint, isPending: mintPending, txHash: mintTx, receipt: mintReceipt, error: mintError } = useTestToken();
   const [amount, setAmount] = useState("");
 
   // Clear the amount input after a successful deposit or withdraw.
@@ -38,6 +39,11 @@ export default function VaultPage() {
   const handleWithdraw = () => {
     try {
       withdraw(parseEther(amount || "0"));
+    } catch { /* invalid input */ }
+  };
+  const handleMint = () => {
+    try {
+      mint(parseEther(amount || "0"));
     } catch { /* invalid input */ }
   };
 
@@ -92,6 +98,21 @@ export default function VaultPage() {
             {(receipt.isSuccess || flowReceipt.isSuccess) && <Badge tone="success">Confirmed</Badge>}
             {error && <p className="mt-2 text-sm text-danger">{error.message.slice(0, 120)}</p>}
             {flowError && <p className="mt-2 text-sm text-danger">{flowError}</p>}
+            <div className="mt-4 border-t border-border/50 pt-4">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-medium">Test tokens</h4>
+                <Badge tone="warning">Testnet only</Badge>
+              </div>
+              <p className="mt-1 text-xs text-foreground/50">
+                Mints pTST to your wallet — the mock token has a permissionless <code>mint()</code> for demos.
+              </p>
+              <button onClick={handleMint} disabled={!isConnected || mintPending || !configured} className="mt-3 w-full rounded-lg border border-warning/40 bg-warning/10 px-4 py-2 text-sm font-medium text-warning disabled:opacity-50">
+                {mintPending ? "Minting…" : `Mint ${amount || "0"} pTST`}
+              </button>
+              {mintTx && <p className="mt-2 break-all font-mono text-xs text-foreground/50">tx: {mintTx}</p>}
+              {mintReceipt.isSuccess && <Badge tone="success">Minted</Badge>}
+              {mintError && <p className="mt-2 text-sm text-danger">{mintError.message.slice(0, 120)}</p>}
+            </div>
             <p className="mt-4 text-xs text-foreground/40">
               Protected exits can only be triggered by an authenticated Reactive callback per your active policy.
             </p>

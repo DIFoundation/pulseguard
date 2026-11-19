@@ -40,7 +40,10 @@ contract MockPriceFeed is IPriceFeed {
     }
 
     /// @notice Publish a price update. Price must be non-zero, 8 decimals.
-    function updatePrice(address asset, uint256 price) external onlyOperator {
+    /// @dev PERMISSIONLESS on testnet: anyone can publish so judges/demo users can
+    ///      trigger policies without operator keys. This is a MOCK feed — prices are
+    ///      not market data. The `operators` mapping is retained for compatibility.
+    function updatePrice(address asset, uint256 price) external {
         if (price == 0) revert ZeroPrice();
         _prices[asset] = price;
         _timestamps[asset] = block.timestamp;

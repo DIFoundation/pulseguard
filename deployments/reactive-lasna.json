@@ -4,26 +4,26 @@
   "rpc": "https://lasna-rpc.rnk.dev/",
   "explorer": "https://lasna.reactscan.net",
   "deployed": true,
-  "deployedAt": "2026-11-18",
+  "deployedAt": "2026-11-19",
   "deployer": "0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67",
   "contracts": {
     "PulseGuardReactive": {
-      "address": "0x98bdcd32229f39c821313ab5eea458e862a2efce",
-      "txHash": "0xb39500528df3041222589ae75fe468182f96c0cc90c2b8a1184d2424c5973467",
-      "block": 8686844,
-      "note": "Deployed with 0.3 REACT funding at construction — constructor SYSTEM.subscribe does not stick when the contract is unfunded."
+      "address": "0x5a99e50b908aae54de55564e09e239833eeb0c49",
+      "txHash": "0x4a296773dfa4c9d96205d2fd7c7784542dc8f2ee4e91cd0b7a00c0f41cdc9325",
+      "block": 8748606,
+      "note": "Redeployed with 0.3 REACT funding; subscribed to new feed 0x4853...7194 + manager 0xED1e...0a6f on Base Sepolia."
     }
   },
   "configuration": {
     "ConfigureReactive.s.sol": {
       "txHashes": [
-        "0x3e81f948cb0b70ab22a93026a044e5fa43bbb46e037673c286c488986f3a68e4",
-        "0x4aa1c67ae4677f6f8a04afd98ddb38e7485e1d040b18c473d5c6bab5b44835ec"
+        "0x0d3a1de473f389e11a4bffe768e0ffcf6b624101fab89ae0f26dbb4777bc9b75",
+        "0x77f70cce7729e6ac4a03dff1004351257a485af62240b9d6cb7a3be589aade8e"
       ],
       "note": "executorForChain[84532] = ProtectionExecutor (Base), executorForChain[1301] = CrossChainExecutor (Unichain)."
     },
     "ProtectionManager.setReactiveContract": {
-      "txHash": "0x64441224315da32b6fe19f9f1514e58d28f18ff8cc05bf742847b07eca27d7df",
+      "txHash": "0x3222572f39b9e649f2cad6e24596a11b0c718e1a893f2ddbb6a1c8540bbd7eb3",
       "note": "Base Sepolia — Configure.s.sol set manager.reactiveContract to the new reactive contract."
     }
   }

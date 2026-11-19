@@ -1,0 +1,227 @@
+"use client";
+
+import { decodeEventLog, createPublicClient, http, type Abi, type Hash } from "viem";
+import { deployments, isConfigured, baseSepolia, unichainSepolia, reactiveLasna, environment } from "@pulseguard/config";
+import {
+  PulseGuardVaultAbi,
+  ProtectionManagerAbi,
+  ProtectionExecutorAbi,
+  MockPriceFeedAbi,
+  CrossChainExecutorAbi,
+  PulseGuardReactiveAbi,
+} from "@pulseguard/abi";
+
+export interface ProtocolEvent {
+  key: string;
+  txHash: Hash;
+  blockNumber: bigint;
+  timestamp?: number; // unix seconds
+  chain: string;
+  source: string;
+  eventName: string;
+  summary: string;
+  policyId?: string;
+  price?: number; // USD, for PriceUpdated
+  amount?: bigint; // token amount for deposit/withdraw/exit events
+}
+
+interface Source {
+  label: string;
+  envKey: keyof typeof deployments;
+  abi: Abi;
+  chain: string;
+  chainKey: "base" | "uni";
+}
+
+const lasnaClient = createPublicClient({
+  chain: reactiveLasna,
+  transport: http(environment.lasnaRpc),
+});
+const baseClient = createPublicClient({
+  chain: baseSepolia,
+  transport: http(environment.baseSepoliaRpc),
+});
+const uniClient = createPublicClient({
+  chain: unichainSepolia,
+  transport: http(environment.unichainSepoliaRpc),
+});
+
+export const SOURCES: Source[] = [
+  { label: "Price Feed", envKey: "priceFeed", abi: MockPriceFeedAbi, chain: "Base Sepolia", chainKey: "base" },
+  { label: "Policy Manager", envKey: "protectionManager", abi: ProtectionManagerAbi, chain: "Base Sepolia", chainKey: "base" },
+  { label: "Executor", envKey: "protectionExecutor", abi: ProtectionExecutorAbi, chain: "Base Sepolia", chainKey: "base" },
+  { label: "Vault", envKey: "vault", abi: PulseGuardVaultAbi, chain: "Base Sepolia", chainKey: "base" },
+  { label: "Unichain Executor", envKey: "crossChainExecutor", abi: CrossChainExecutorAbi, chain: "Unichain Sepolia", chainKey: "uni" },
+];
+
+export const EVENT_ALLOWLIST = new Set([
+  "PriceUpdated",
+  "PolicyCreated", "PolicyActivated", "PolicyExecuted", "PolicyCancelled",
+  "PolicyDeactivated", "PolicyExpired", "PolicyMirrorSync",
+  "CallbackReceived", "ProtectionExecuted", "ProtectedExit",
+  "CrossChainProtectionRecorded",
+  "PolicyMirrored", "PolicyMirrorRemoved", "TriggerEvaluated", "CallbackRequested",
+  "Deposited", "Withdrawn",
+]);
+
+const TRIGGER_NAMES = ["STOP_LOSS", "TAKE_PROFIT", "MAX_DRAWDOWN", "EMERGENCY"];
+
+export function summarize(eventName: string, args: Record<string, unknown>): string {
+  switch (eventName) {
+    case "PriceUpdated":
+      return `price → $${((args.price as bigint) / 10n ** 6n).toString()}.${(((args.price as bigint) / 10n ** 4n) % 100n).toString().padStart(2, "0")}`;
+    case "PolicyCreated":
+      return `policy #${args.id} created (${TRIGGER_NAMES[Number(args.triggerType)] ?? ""})`;
+    case "PolicyExecuted":
+      return `policy #${args.id} executed`;
+    case "CallbackReceived":
+      return `callback received — policy #${args.policyId}`;
+    case "ProtectionExecuted":
+      return `policy #${args.policyId} protected`;
+    case "ProtectedExit":
+      return `protected exit — ${args.amount} tokens`;
+    case "CrossChainProtectionRecorded":
+      return `cross-chain attestation — policy #${args.policyId}`;
+    case "PolicyMirrored":
+      return `policy #${args.id} mirrored on Lasna`;
+    case "PolicyMirrorRemoved":
+      return `policy #${args.id} mirror removed`;
+    case "TriggerEvaluated":
+      return `policy #${args.policyId} trigger evaluated`;
+    case "CallbackRequested":
+      return `callback requested — policy #${args.policyId} → chain ${args.destinationChainId}`;
+    case "Deposited":
+      return `deposit — ${args.amount} tokens`;
+    case "Withdrawn":
+      return `withdrawal — ${args.amount} tokens`;
+    default:
+      return eventName;
+  }
+}
+
+interface NormalizedLog {
+  blockNumber: string;
+  transactionHash: `0x${string}`;
+  logIndex: string;
+  topics: string[];
+  data: string;
+}
+
+async function fetchChainLogs(chainKey: string, address: string): Promise<NormalizedLog[]> {
+  const res = await fetch(`/api/logs?chain=${chainKey}&address=${address}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`logs ${res.status} for ${chainKey}/${address}`);
+  const json = (await res.json()) as { logs?: NormalizedLog[] };
+  return json.logs ?? [];
+}
+
+/// @dev Fetch + decode all PulseGuard events across Base, Lasna, Unichain.
+///      Returns events sorted by timestamp desc (events without timestamps last).
+export async function fetchProtocolEvents(): Promise<ProtocolEvent[]> {
+  const collected: ProtocolEvent[] = [];
+
+  await Promise.all(
+    SOURCES.map(async (src) => {
+      const info = deployments[src.envKey];
+      if (!info.address) return;
+      const logs = await fetchChainLogs(src.chainKey, info.address);
+      for (const log of logs) {
+        try {
+          const decoded = decodeEventLog({
+            abi: src.abi,
+            data: log.data as `0x${string}`,
+            topics: log.topics as [`0x${string}`, ...`0x${string}`[]],
+          });
+          const eventName: string = decoded.eventName ?? "Unknown";
+          if (!EVENT_ALLOWLIST.has(eventName)) continue;
+          const args = (decoded.args ?? {}) as unknown as Record<string, unknown>;
+          collected.push({
+            key: `${src.chain}-${log.transactionHash}-${log.logIndex}`,
+            txHash: log.transactionHash,
+            blockNumber: BigInt(log.blockNumber),
+            chain: src.chain,
+            source: src.label,
+            eventName,
+            summary: summarize(eventName, args),
+            policyId: args.policyId !== undefined ? String(args.policyId) : args.id !== undefined ? String(args.id) : undefined,
+            price: eventName === "PriceUpdated" && args.price !== undefined ? Number(args.price) / 1e8 : undefined,
+            amount: args.amount as bigint | undefined,
+          });
+        } catch {
+          // event not in this ABI — skip
+        }
+      }
+    })
+  );
+
+  // Lasna reactive events
+  const reactiveAddr = deployments.reactive.address as `0x${string}`;
+  if (isConfigured("reactive") && reactiveAddr) {
+    try {
+      const logs = await fetchChainLogs("lasna", reactiveAddr);
+      for (const log of logs) {
+        try {
+          const decoded = decodeEventLog({
+            abi: PulseGuardReactiveAbi,
+            data: log.data as `0x${string}`,
+            topics: log.topics as [`0x${string}`, ...`0x${string}`[]],
+          });
+          const eventName: string = decoded.eventName ?? "Unknown";
+          if (!EVENT_ALLOWLIST.has(eventName)) continue;
+          const args = (decoded.args ?? {}) as unknown as Record<string, unknown>;
+          collected.push({
+            key: `Reactive Lasna-${log.transactionHash}-${log.logIndex}`,
+            txHash: log.transactionHash,
+            blockNumber: BigInt(log.blockNumber),
+            chain: "Reactive Lasna",
+            source: "Reactive Contract",
+            eventName,
+            summary: summarize(eventName, args),
+            policyId: args.policyId !== undefined ? String(args.policyId) : args.id !== undefined ? String(args.id) : undefined,
+          });
+        } catch {
+          // skip
+        }
+      }
+    } catch {
+      // Lasna fetch failed — continue without it
+    }
+  }
+
+  // Fetch timestamps for unique blocks (batched, capped).
+  const clients: Record<string, { getBlock: (a: { blockNumber: bigint }) => Promise<{ timestamp: bigint }> }> = {
+    "Base Sepolia": baseClient,
+    "Unichain Sepolia": uniClient,
+    "Reactive Lasna": lasnaClient,
+  };
+  const uniqueBlocks = new Map<string, bigint>();
+  for (const e of collected) {
+    const k = `${e.chain}:${e.blockNumber}`;
+    if (!uniqueBlocks.has(k)) uniqueBlocks.set(k, e.blockNumber);
+  }
+  const jobs = [...uniqueBlocks.entries()].slice(0, 250).map(([k, bn]) => {
+    const [chain] = k.split(":");
+    return { chain, bn };
+  });
+  const tsByBlock = new Map<string, number>();
+  for (let i = 0; i < jobs.length; i += 20) {
+    await Promise.all(
+      jobs.slice(i, i + 20).map(async (j) => {
+        const c = clients[j.chain];
+        if (!c) return;
+        try {
+          const b = await c.getBlock({ blockNumber: j.bn });
+          tsByBlock.set(`${j.chain}:${j.bn}`, Number(b.timestamp));
+        } catch {
+          // skip
+        }
+      })
+    );
+  }
+  for (const e of collected) {
+    const ts = tsByBlock.get(`${e.chain}:${e.blockNumber}`);
+    if (ts !== undefined) e.timestamp = ts;
+  }
+
+  collected.sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+  return collected;
+}

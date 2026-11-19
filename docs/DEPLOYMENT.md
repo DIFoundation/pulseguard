@@ -1,13 +1,15 @@
 # Deployment
 
-## Current deployment (2026-11-17, post-remediation)
+## Current deployment (2026-11-18, post-review-fixes)
 
-All contracts redeployed with the remediation fixes and **verified on explorers**
-(Base Sepolia + Unichain Sepolia). Addresses and tx hashes are in `deployments/`:
+All contracts redeployed with the code-review fixes (bounded policy arrays,
+permissionless `expirePolicy`, per-policy callback latch, `createPolicy`
+validation, corrected `Configure.s.sol` chain-1301 registration). Addresses and
+tx hashes are in `deployments/`:
 
-- `deployments/base-sepolia.json` — MockERC20 `0x9e8c…e77d`, MockPriceFeed `0x3c46…fb88`, PulseGuardVault `0x8186…35e3`, ProtectionManager `0x1a5c…1f4e`, ProtectionExecutor `0x35Ad…bDC8`, SettlementRelay `0x3703…7519`
-- `deployments/unichain-sepolia.json` — CrossChainExecutor `0xD931…F4B0`
-- `deployments/reactive-lasna.json` — PulseGuardReactive `0xdE25…0C7b` (funded 0.3 REACT at deploy — constructor subscriptions require balance)
+- `deployments/base-sepolia.json` — MockERC20 `0x15c0…6867`, MockPriceFeed `0x928a…8239`, PulseGuardVault `0x01f3…5bc1`, ProtectionManager `0x5d6a…43e5`, ProtectionExecutor `0x1aa4…93f9`, SettlementRelay `0x914e…8887`
+- `deployments/unichain-sepolia.json` — CrossChainExecutor `0x79ac…2dc6`
+- `deployments/reactive-lasna.json` — PulseGuardReactive `0x98bd…efce` (funded 0.3 REACT at deploy — constructor subscriptions require balance)
 
 Deployer: `0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67`
 
@@ -51,6 +53,12 @@ MANAGER_ADDRESS=0x<manager> REACTIVE_ADDRESS=0x<reactive> \
 CALLBACK_PROXY=0x476F44b11F5C942c58f4c8E3d0300E5710743585 \
 DEPLOYER_PRIVATE_KEY=0x... \
 forge script script/DeployExecutor.s.sol:DeployExecutor \
+  --rpc-url $BASE_RPC --broadcast
+
+# 3b. Base Sepolia: settlement relay (settles Unichain-attested policies)
+MANAGER_ADDRESS=0x<manager> \
+DEPLOYER_PRIVATE_KEY=0x... \
+forge script script/DeployRelay.s.sol:DeployRelay \
   --rpc-url $BASE_RPC --broadcast
 
 # 4. Unichain Sepolia: cross-chain executor

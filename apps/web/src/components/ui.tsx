@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`glass rounded-xl p-5 ${className}`}>{children}</div>;
+export function Card({ children, className = "", style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
+  return <div className={`glass rounded-xl p-5 ${className}`} style={style}>{children}</div>;
 }
 
 export function StatCard({ label, value, sub, tone = "default", icon: Icon }: { label: string; value: ReactNode; sub?: string; tone?: "default" | "success" | "warning" | "danger"; icon?: LucideIcon }) {

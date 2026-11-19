@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Shield, LayoutDashboard, Vault, FileText, Store, FlaskConical, Activity, Settings, Menu, X } from "lucide-react";
+import { LayoutDashboard, Vault, FileText, Store, FlaskConical, Activity, Settings, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useAppKit } from "@reown/appkit/react";
 import { useAccount } from "wagmi";
 import { shortAddress } from "@/lib/format";
+import Image from "next/image";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -28,8 +29,15 @@ export function Navbar() {
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
-          <Shield className="h-6 w-6 text-accent" />
-          <span className="text-lg font-semibold tracking-tight">PulseGuard</span>
+          <Image
+            src="/logo.png"
+            alt="PulseGuard"
+            width={200}
+            height={200}
+            className="w-20 h-12"
+          />
+          {/* <Shield className="h-6 w-6 text-accent" /> */}
+          {/* <span className="text-lg font-semibold tracking-tight">PulseGuard</span> */}
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">

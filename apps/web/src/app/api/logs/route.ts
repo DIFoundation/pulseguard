@@ -89,7 +89,7 @@ const CONCURRENCY = 8;
 /// @dev Simple per-IP rate limit: RATE_LIMIT requests per RATE_WINDOW_MS.
 ///      In-memory — sufficient for a single-instance deployment; swap for a
 ///      shared store (e.g. Upstash) if horizontally scaled.
-const RATE_LIMIT = 12;
+const RATE_LIMIT = 60;
 const RATE_WINDOW_MS = 60_000;
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 

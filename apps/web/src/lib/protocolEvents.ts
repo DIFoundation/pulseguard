@@ -107,11 +107,27 @@ interface NormalizedLog {
   data: string;
 }
 
-async function fetchChainLogs(chainKey: string, address: string): Promise<NormalizedLog[]> {
-  const res = await fetch(`/api/logs?chain=${chainKey}&address=${address}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`logs ${res.status} for ${chainKey}/${address}`);
-  const json = (await res.json()) as { logs?: NormalizedLog[] };
-  return json.logs ?? [];
+export async function fetchChainLogs(chainKey: string, address: string): Promise<NormalizedLog[]> {
+  // Retry on 429/5xx with backoff — several pages share this endpoint and the
+  // per-IP rate limit can trip during simultaneous bursts.
+  let lastErr: Error | null = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await fetch(`/api/logs?chain=${chainKey}&address=${address}`, { cache: "no-store" });
+      if (res.status === 429 || res.status >= 500) {
+        lastErr = new Error(`logs ${res.status} for ${chainKey}/${address}`);
+        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        continue;
+      }
+      if (!res.ok) throw new Error(`logs ${res.status} for ${chainKey}/${address}`);
+      const json = (await res.json()) as { logs?: NormalizedLog[] };
+      return json.logs ?? [];
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+    }
+  }
+  throw lastErr ?? new Error(`logs failed for ${chainKey}/${address}`);
 }
 
 /// @dev Fetch + decode all PulseGuard events across Base, Lasna, Unichain.

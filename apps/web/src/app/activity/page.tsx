@@ -6,6 +6,7 @@ import { decodeEventLog, createPublicClient, http, type Abi, type Hash } from "v
 import { Activity as ActivityIcon, Zap, Layers, Timer } from "lucide-react";
 import { StatCard } from "@/components/ui";
 import { useProtocolAnalytics } from "@/hooks/useAnalytics";
+import { fetchChainLogs } from "@/lib/protocolEvents";
 import { formatPrice, formatTokenAmount, shortAddress, shortHash } from "@/lib/format";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
@@ -149,13 +150,6 @@ function originKeyFor(
     return `${txHash}:${String(rawIdx)}`;
   }
   return undefined;
-}
-
-async function fetchChainLogs(chainKey: string, address: string): Promise<NormalizedLog[]> {
-  const res = await fetch(`/api/logs?chain=${chainKey}&address=${address}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`logs ${res.status} for ${chainKey}/${address}`);
-  const json = (await res.json()) as { logs?: NormalizedLog[] };
-  return json.logs ?? [];
 }
 
 const PAGE_SIZE = 20;

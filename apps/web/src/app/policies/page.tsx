@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, TrendingDown, TrendingUp, Activity, Siren, ShieldCheck, FileText } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
 import { usePolicies } from "@/hooks/useContracts";
@@ -17,6 +17,7 @@ const STATUS_TONES: Record<number, "default" | "success" | "warning" | "danger" 
   0: "default", 1: "success", 2: "warning", 3: "accent", 4: "default", 5: "warning", 6: "danger",
 };
 const TRIGGER_LABELS = ["Stop-Loss", "Take-Profit", "Max Drawdown", "Emergency"];
+const TRIGGER_ICONS = [TrendingDown, TrendingUp, Activity, Siren];
 // Status codes: 0=Created(deactivated), 1=Active, 2=Triggered, 3=Executed,
 // 4=Cancelled, 5=Expired, 6=Failed. "attested" is a cross-chain flag, not a status.
 const FILTER_STATUS: Record<string, number> = { active: 1, deactivated: 0, executed: 3, cancelled: 4, expired: 5 };
@@ -123,12 +124,12 @@ export default function PoliciesPage() {
           </Card>
         )}
 
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 inline-flex flex-wrap gap-1 rounded-xl border border-border/60 bg-card/50 p-1">
           {["all", "active", "deactivated", "attested", "executed", "cancelled", "expired"].map((f) => (
             <button
               key={f}
               onClick={() => { setFilter(f); setPage(0); }}
-              className={`rounded-lg px-3 py-1.5 text-sm capitalize ${filter === f ? "bg-accent/15 text-accent" : "text-foreground/60 hover:bg-card"}`}
+              className={`rounded-lg px-3 py-1.5 text-sm capitalize transition-colors ${filter === f ? "bg-accent/15 text-accent" : "text-foreground/60 hover:text-foreground"}`}
             >
               {f} <span className="ml-1 text-xs opacity-60">({countFor(f)})</span>
             </button>
@@ -136,8 +137,12 @@ export default function PoliciesPage() {
         </div>
 
         {ids.length === 0 ? (
-          <Card className="p-8 text-center text-foreground/50">
-            No policies yet. Create your first protection policy to get started.
+          <Card className="flex flex-col items-center gap-3 p-10 text-center">
+            <ShieldCheck className="h-10 w-10 text-accent/60" />
+            <p className="text-foreground/60">No policies yet.</p>
+            <Link href="/policies/create" className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent/90">
+              Create your first policy
+            </Link>
           </Card>
         ) : visibleIds.length === 0 ? (
           <Card className="p-8 text-center text-foreground/50">
@@ -230,7 +235,7 @@ function PolicyRow({ id, policy, attested, loading, onDeactivate, onCancel, onEx
         <button onClick={() => setExpanded(!expanded)} className="flex w-full items-center gap-3 text-left">
           <span className="font-mono text-sm text-accent">#{id.toString()}</span>
           <Badge tone={STATUS_TONES[status] ?? "default"}>{STATUS_LABELS[status]}</Badge>
-          <Badge tone="accent">{TRIGGER_LABELS[Number(policy.triggerType)]}</Badge>
+          {(() => { const TIcon = TRIGGER_ICONS[Number(policy.triggerType)] ?? FileText; return <Badge tone="accent"><span className="mr-1 inline-flex items-center gap-1"><TIcon className="h-3 w-3" />{TRIGGER_LABELS[Number(policy.triggerType)]}</span></Badge>; })()}
           {attested === true && <Badge tone="success">Attested on Unichain</Badge>}
           {expanded ? <ChevronUp className="ml-auto h-4 w-4 text-foreground/40" /> : <ChevronDown className="ml-auto h-4 w-4 text-foreground/40" />}
         </button>

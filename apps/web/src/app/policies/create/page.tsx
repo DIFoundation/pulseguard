@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { TrendingDown, TrendingUp, Activity, Siren, Settings2, ListChecks, Rocket } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { usePolicies, useVault } from "@/hooks/useContracts";
@@ -11,10 +12,10 @@ import { parseUnits } from "viem";
 import { formatTokenAmount } from "@/lib/format";
 
 const TRIGGERS = [
-  { value: 0, label: "Stop-Loss", desc: "Triggers when price falls to or below threshold — executes a protected vault exit to your recipient" },
-  { value: 1, label: "Take-Profit", desc: "Triggers when price reaches or exceeds threshold" },
-  { value: 2, label: "Max Drawdown", desc: "Triggers when loss from reference exceeds max drawdown" },
-  { value: 3, label: "Emergency", desc: "Triggers on explicit emergency price condition" },
+  { value: 0, label: "Stop-Loss", desc: "Triggers when price falls to or below threshold — executes a protected vault exit to your recipient", icon: TrendingDown },
+  { value: 1, label: "Take-Profit", desc: "Triggers when price reaches or exceeds threshold", icon: TrendingUp },
+  { value: 2, label: "Max Drawdown", desc: "Triggers when loss from reference exceeds max drawdown", icon: Activity },
+  { value: 3, label: "Emergency", desc: "Triggers on explicit emergency price condition", icon: Siren },
 ];
 
 const PRICE_DECIMALS = 8;
@@ -172,7 +173,10 @@ function CreatePolicyForm() {
 
         <div className="space-y-6">
           <Card>
-            <h3 className="font-semibold">Trigger Strategy</h3>
+            <div className="flex items-center gap-2">
+              <Settings2 className="h-4 w-4 text-accent" />
+              <h3 className="font-semibold">1 · Trigger Strategy</h3>
+            </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {TRIGGERS.map((t) => (
                 <button
@@ -180,7 +184,10 @@ function CreatePolicyForm() {
                   onClick={() => setTriggerType(t.value)}
                   className={`rounded-lg border p-4 text-left transition-colors ${triggerType === t.value ? "border-accent bg-accent/10" : "border-border hover:bg-card"}`}
                 >
-                  <p className="font-medium">{t.label}</p>
+                  <div className="flex items-center gap-2">
+                    <t.icon className={`h-4 w-4 ${triggerType === t.value ? "text-accent" : "text-foreground/50"}`} />
+                    <p className="font-medium">{t.label}</p>
+                  </div>
                   <p className="mt-1 text-xs text-foreground/50">{t.desc}</p>
                 </button>
               ))}
@@ -188,7 +195,10 @@ function CreatePolicyForm() {
           </Card>
 
           <Card>
-            <h3 className="font-semibold">Parameters</h3>
+            <div className="flex items-center gap-2">
+              <ListChecks className="h-4 w-4 text-accent" />
+              <h3 className="font-semibold">2 · Parameters</h3>
+            </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="text-sm text-foreground/60">Threshold price (USD, 8 decimals)</label>
@@ -230,7 +240,10 @@ function CreatePolicyForm() {
           </Card>
 
           <Card>
-            <h3 className="font-semibold">Review</h3>
+            <div className="flex items-center gap-2">
+              <Rocket className="h-4 w-4 text-accent" />
+              <h3 className="font-semibold">3 · Review &amp; Deploy</h3>
+            </div>
             <div className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-foreground/60">Strategy</span><span>{TRIGGERS[triggerType].label}</span></div>
               <div className="flex justify-between"><span className="text-foreground/60">Threshold</span><span>{threshold || "—"}</span></div>

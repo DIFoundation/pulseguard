@@ -1,18 +1,30 @@
 import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`glass rounded-xl p-5 ${className}`}>{children}</div>;
 }
 
-export function StatCard({ label, value, sub, tone = "default" }: { label: string; value: ReactNode; sub?: string; tone?: "default" | "success" | "warning" | "danger" }) {
+export function StatCard({ label, value, sub, tone = "default", icon: Icon }: { label: string; value: ReactNode; sub?: string; tone?: "default" | "success" | "warning" | "danger"; icon?: LucideIcon }) {
   const tones = {
     default: "text-foreground",
     success: "text-success",
     warning: "text-warning",
     danger: "text-danger",
   };
+  const iconTones = {
+    default: "text-accent",
+    success: "text-success",
+    warning: "text-warning",
+    danger: "text-danger",
+  };
   return (
-    <Card>
+    <Card className="relative overflow-hidden">
+      {Icon && (
+        <div className="absolute right-4 top-4 rounded-lg bg-accent/10 p-2">
+          <Icon className={`h-4 w-4 ${iconTones[tone]}`} />
+        </div>
+      )}
       <p className="text-xs uppercase tracking-wider text-foreground/50">{label}</p>
       <p className={`mt-2 text-2xl font-semibold ${tones[tone]}`}>{value}</p>
       {sub && <p className="mt-1 text-xs text-foreground/50">{sub}</p>}

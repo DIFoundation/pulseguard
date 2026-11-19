@@ -22,9 +22,11 @@ export default function MarketplacePage() {
         <PageHeader title="Policy Marketplace" description="Reusable protection templates. Customize parameters and activate on-chain." />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map(({ icon: Icon, name, desc, trigger, triggerValue, params }) => (
-            <Card key={name} className="flex flex-col">
+            <Card key={name} className="flex flex-col transition-transform hover:-translate-y-0.5">
               <div className="flex items-center gap-3">
-                <Icon className="h-6 w-6 text-accent" />
+                <div className="rounded-lg bg-accent/10 p-2">
+                  <Icon className="h-5 w-5 text-accent" />
+                </div>
                 <h3 className="font-semibold">{name}</h3>
               </div>
               <p className="mt-2 flex-1 text-sm text-foreground/60">{desc}</p>

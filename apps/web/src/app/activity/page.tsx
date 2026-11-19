@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useReadContract, usePublicClient } from "wagmi";
 import { decodeEventLog, createPublicClient, http, type Abi, type Hash } from "viem";
+import { Activity as ActivityIcon, Zap, Layers, Timer } from "lucide-react";
+import { StatCard } from "@/components/ui";
+import { useProtocolAnalytics } from "@/hooks/useAnalytics";
 import { formatPrice, formatTokenAmount, shortAddress, shortHash } from "@/lib/format";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge, Skeleton } from "@/components/ui";
@@ -158,6 +161,7 @@ async function fetchChainLogs(chainKey: string, address: string): Promise<Normal
 const PAGE_SIZE = 20;
 
 export default function ActivityPage() {
+  const analytics = useProtocolAnalytics();
   const baseClient = usePublicClient({ chainId: baseSepolia.id });
   const uniClient = usePublicClient({ chainId: unichainSepolia.id });
   const [events, setEvents] = useState<ActivityEvent[]>([]);
@@ -405,6 +409,13 @@ export default function ActivityPage() {
       <Navbar />
       <main className="mx-auto max-w-7xl px-4 py-8">
         <PageHeader title="Activity" description="Execution lifecycle events across origin, Reactive, and destination chains." />
+
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Total Events" value={analytics.loading ? "…" : analytics.events.length} sub="indexed across 3 chains" icon={ActivityIcon} />
+          <StatCard label="Executions" value={analytics.loading ? "…" : analytics.executionCount} sub="protection actions" icon={Zap} tone={analytics.executionCount > 0 ? "success" : "default"} />
+          <StatCard label="Price Updates" value={analytics.loading ? "…" : analytics.priceSeries.length} sub="oracle events" icon={Layers} />
+          <StatCard label="Avg Latency" value={analytics.latency ? `${analytics.latency.avg}s` : "—"} sub={analytics.latency ? `${analytics.latency.count} samples` : "no executions yet"} icon={Timer} tone={analytics.latency ? "success" : "default"} />
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <Card>

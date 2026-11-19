@@ -4,6 +4,8 @@ import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { useAccount } from "wagmi";
 import { deployments } from "@pulseguard/config";
+import { Wallet, Globe, Cpu, AlertTriangle } from "lucide-react";
+import { shortAddress as shortAddr } from "@/lib/format";
 
 export default function SettingsPage() {
   const { address, chainId, isConnected } = useAccount();
@@ -16,16 +18,22 @@ export default function SettingsPage() {
 
         <div className="space-y-6">
           <Card>
-            <h3 className="font-semibold">Wallet</h3>
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-accent" />
+              <h3 className="font-semibold">Wallet</h3>
+            </div>
             <div className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-foreground/60">Connected</span><span>{isConnected ? "Yes" : "No"}</span></div>
-              <div className="flex justify-between"><span className="text-foreground/60">Address</span><span className="font-mono text-xs">{address ?? "—"}</span></div>
+              <div className="flex justify-between"><span className="text-foreground/60">Address</span><span className="font-mono text-xs">{address ? shortAddr(address) : "—"}</span></div>
               <div className="flex justify-between"><span className="text-foreground/60">Chain ID</span><span>{chainId ?? "—"}</span></div>
             </div>
           </Card>
 
           <Card>
-            <h3 className="font-semibold">Networks</h3>
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-accent" />
+              <h3 className="font-semibold">Networks</h3>
+            </div>
             <ul className="mt-3 space-y-2 text-sm">
               <li className="flex justify-between"><span>Base Sepolia (origin + primary destination)</span><Badge tone="success">84532</Badge></li>
               <li className="flex justify-between"><span>Unichain Sepolia (cross-chain destination)</span><Badge tone="success">1301</Badge></li>
@@ -34,7 +42,10 @@ export default function SettingsPage() {
           </Card>
 
           <Card>
-            <h3 className="font-semibold">Protocol</h3>
+            <div className="flex items-center gap-2">
+              <Cpu className="h-4 w-4 text-accent" />
+              <h3 className="font-semibold">Protocol</h3>
+            </div>
             <div className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-foreground/60">Reactive library</span><span>reactive-lib-omni (Omni architecture)</span></div>
               <div className="flex justify-between"><span className="text-foreground/60">Solidity</span><span>0.8.29</span></div>
@@ -44,10 +55,13 @@ export default function SettingsPage() {
           </Card>
 
           <Card>
-            <h3 className="font-semibold">Disclaimer</h3>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <h3 className="font-semibold">Disclaimer</h3>
+            </div>
             <p className="mt-2 text-sm text-foreground/60">
               PulseGuard is a testnet hackathon prototype. It is not audited and must not be used with real funds.
-              Mock oracle prices are operator-published, not market data.
+              Mock oracle prices are permissionless on testnet — never use with real assets.
             </p>
           </Card>
         </div>

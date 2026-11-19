@@ -6,7 +6,7 @@
   "deployed": true,
   "deployedAt": "2026-11-18",
   "deployer": "0x6Cac76f9e8d6F55b3823D8aEADEad970a5441b67",
-  "verified": false,
+  "verified": true,
   "contracts": {
     "CrossChainExecutor": {
       "address": "0x79ac47b744b5147faafb84a2c3df673b71312dc6",

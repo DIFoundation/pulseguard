@@ -29,10 +29,12 @@ contract SmokeTest is Script {
         ProtectionManager manager = ProtectionManager(managerAddr);
 
         // Demo parameters: price starts at $100 (8 decimals), stop-loss at $90.
-        uint256 initialPrice = 100 * 10 ** 8;
-        uint256 stopLoss = 90 * 10 ** 8;
-        uint256 depositAmount = 1_000 * 10 ** 18; // 1000 pTST
-        uint256 protectedAmount = 500 * 10 ** 18; // 500 pTST
+        // Override via env for additional flows (e.g. DESTINATION_CHAIN_ID=1301).
+        uint256 initialPrice = vm.envOr("INITIAL_PRICE", uint256(100 * 10 ** 8));
+        uint256 stopLoss = vm.envOr("STOP_LOSS", uint256(90 * 10 ** 8));
+        uint256 depositAmount = vm.envOr("DEPOSIT_AMOUNT", uint256(1_000 * 10 ** 18)); // 1000 pTST
+        uint256 protectedAmount = vm.envOr("PROTECTED_AMOUNT", uint256(500 * 10 ** 18)); // 500 pTST
+        uint256 destChainId = vm.envOr("DESTINATION_CHAIN_ID", uint256(84532));
 
         vm.startBroadcast(deployerKey);
 
@@ -46,7 +48,7 @@ contract SmokeTest is Script {
         p.owner = deployer;
         p.asset = tokenAddr;
         p.monitoredAsset = tokenAddr;
-        p.destinationChainId = 84532; // callback executes on Base Sepolia
+        p.destinationChainId = destChainId;
         p.triggerType = ProtectionTypes.TriggerType.STOP_LOSS;
         p.threshold = stopLoss;
         p.referencePrice = 0;

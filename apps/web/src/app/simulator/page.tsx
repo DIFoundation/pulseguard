@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { usePriceFeed } from "@/hooks/useContracts";
@@ -8,6 +8,7 @@ import { deployments, isConfigured } from "@pulseguard/config";
 import { useAccount } from "wagmi";
 import { parseUnits } from "viem";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { formatPrice } from "@/lib/format";
 
 interface Scenario {
   id: number;
@@ -21,9 +22,12 @@ interface Scenario {
 
 export default function SimulatorPage() {
   const { isConnected } = useAccount();
-  const { updatePrice, isPending: pricePending, txHash: priceTx, receipt: priceReceipt } = usePriceFeed();
+  const { latestPrice, updatePrice, isPending: pricePending, txHash: priceTx, receipt: priceReceipt } = usePriceFeed();
   const [publishPrice, setPublishPrice] = useState("1900");
   const feedAsset = deployments.testToken.address as `0x${string}`;
+
+  // latestPrice returns (price, timestamp); the shared ABI is untyped so we cast the tuple.
+  const tokenPrice = (latestPrice.data as readonly [bigint, bigint] | undefined)?.[0];
 
   const handlePublish = () => {
     const p = parseFloat(publishPrice);
@@ -129,6 +133,11 @@ export default function SimulatorPage() {
             The mock feed is <strong>permissionless</strong>: anyone can publish any price. Never use with real assets.
           </p>
           <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div>
+              <label className="text-sm text-foreground/60">Latest Price:</label>
+              <input type="text" value={tokenPrice ? formatPrice(tokenPrice) : "—"} readOnly className="mt-1 w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            </div>
+            <div className="h-10 w-px bg-border" />
             <div>
               <label className="text-sm text-foreground/60">Price (USD, 8 decimals)</label>
               <input value={publishPrice} onChange={(e) => setPublishPrice(e.target.value)} className="mt-1 w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent" />

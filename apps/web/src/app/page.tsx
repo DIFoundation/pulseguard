@@ -32,10 +32,10 @@ export default function LandingPage() {
         {/* ============ HERO ============ */}
         <section className="relative overflow-hidden">
           {/* animated orbs */}
-          <div className="pointer-events-none absolute -top-40 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-accent/20 blur-3xl animate-float" />
+          <div className="pointer-events-none absolute -top-40 left-1/2 h-112 w-md -translate-x-1/2 rounded-full bg-accent/20 blur-3xl animate-float" />
           <div className="pointer-events-none absolute top-32 -left-24 h-80 w-80 rounded-full bg-accent-2/15 blur-3xl animate-float" style={{ animationDelay: "1.2s" }} />
           <div className="pointer-events-none absolute top-32 -right-24 h-80 w-80 rounded-full bg-accent/15 blur-3xl animate-float" style={{ animationDelay: "2.4s" }} />
-          <div className="grid-bg pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black,transparent)]" />
+          <div className="grid-bg pointer-events-none absolute inset-0 mask-[radial-gradient(ellipse_70%_60%_at_50%_0%,black,transparent)]" />
 
           <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-28 text-center">
             <div className="animate-fade-up mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-1.5 text-xs font-medium text-accent">
@@ -234,7 +234,7 @@ export default function LandingPage() {
         <section className="pb-28">
           <div className="mx-auto max-w-7xl px-4">
             <Card className="animate-fade-up relative overflow-hidden p-10 text-center md:p-16">
-              <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[40rem] -translate-x-1/2 rounded-full bg-accent/20 blur-3xl" />
+              <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-160 -translate-x-1/2 rounded-full bg-accent/20 blur-3xl" />
               <div className="relative">
                 <h2 className="text-3xl font-semibold md:text-4xl">Ready to protect your position?</h2>
                 <p className="mx-auto mt-3 max-w-md text-foreground/60">

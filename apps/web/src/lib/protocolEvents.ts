@@ -10,6 +10,7 @@ import {
   CrossChainExecutorAbi,
   PulseGuardReactiveAbi,
 } from "@pulseguard/abi";
+import { formatPrice } from "./format";
 
 export interface ProtocolEvent {
   key: string;
@@ -91,7 +92,7 @@ export function summarize(eventName: string, args: Record<string, unknown>): str
     case "CallbackRequested":
       return `callback requested — policy #${args.policyId} → chain ${args.destinationChainId}`;
     case "Deposited":
-      return `deposit — ${args.amount} tokens`;
+      return `deposit — ${formatPrice(args.amount as bigint)} tokens`;
     case "Withdrawn":
       return `withdrawal — ${args.amount} tokens`;
     default:

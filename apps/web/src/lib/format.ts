@@ -4,7 +4,9 @@ import { formatEther, formatUnits } from "viem";
 
 /** Format an 8-decimal oracle price as USD, e.g. "$70.00". */
 export function formatPrice(value: bigint | number | string, decimals = 8): string {
-  const n = typeof value === "bigint" ? Number(formatUnits(value, decimals)) : Number(value);
+  const raw = typeof value === "bigint" ? formatUnits(value, decimals) : value;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return "—";
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 

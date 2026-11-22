@@ -237,6 +237,7 @@ export function usePriceFeed() {
   const feedAddr = deployments.priceFeed.address as `0x${string}`;
   const { writeContract, data: txHash, isPending } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash: txHash });
+  const tokenAddr = deployments.testToken.address as `0x${string}`;
 
   const updatePrice = (asset: `0x${string}`, price: bigint) =>
     writeContract({
@@ -247,5 +248,14 @@ export function usePriceFeed() {
       chainId: baseSepolia.id,
     });
 
-  return { updatePrice, isPending, txHash, receipt };
+  const latestPrice = useReadContract({
+    abi: MockPriceFeedAbi,
+    address: isConfigured("priceFeed") ? feedAddr : undefined,
+    functionName: "latestPrice",
+    args: tokenAddr ? [tokenAddr] : undefined,
+    chainId: baseSepolia.id,
+    query: { enabled: !!tokenAddr && isConfigured("priceFeed"), refetchInterval: 5000 },
+  });
+
+  return { latestPrice, updatePrice, isPending, txHash, receipt };
 }

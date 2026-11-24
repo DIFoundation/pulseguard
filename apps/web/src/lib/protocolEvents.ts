@@ -15,6 +15,7 @@ import { formatPrice } from "./format";
 export interface ProtocolEvent {
   key: string;
   txHash: Hash;
+  logIndex?: string;
   blockNumber: bigint;
   timestamp?: number; // unix seconds
   chain: string;
@@ -22,6 +23,7 @@ export interface ProtocolEvent {
   eventName: string;
   summary: string;
   policyId?: string;
+  originKey?: string; // `${originTxHash}:${originLogIndex}`
   price?: number; // USD, for PriceUpdated
   amount?: bigint; // token amount for deposit/withdraw/exit events
 }
@@ -70,7 +72,7 @@ const TRIGGER_NAMES = ["STOP_LOSS", "TAKE_PROFIT", "MAX_DRAWDOWN", "EMERGENCY"];
 export function summarize(eventName: string, args: Record<string, unknown>): string {
   switch (eventName) {
     case "PriceUpdated":
-      return `price → $${((args.price as bigint) / 10n ** 6n).toString()}.${(((args.price as bigint) / 10n ** 4n) % 100n).toString().padStart(2, "0")}`;
+      return `price → ${formatPrice(args.price as bigint, 8)}`;
     case "PolicyCreated":
       return `policy #${args.id} created (${TRIGGER_NAMES[Number(args.triggerType)] ?? ""})`;
     case "PolicyExecuted":
@@ -107,6 +109,80 @@ interface NormalizedLog {
   topics: string[];
   data: string;
   timestamp?: string;
+}
+
+function getEventTimestamp(
+  args: Record<string, unknown>,
+  log: NormalizedLog
+): number | undefined {
+  const rawTimestamp = args.timestamp;
+
+  if (
+    typeof rawTimestamp === "bigint" ||
+    typeof rawTimestamp === "number" ||
+    typeof rawTimestamp === "string"
+  ) {
+    const timestamp = Number(rawTimestamp);
+
+    if (Number.isFinite(timestamp) && timestamp > 0) {
+      return timestamp;
+    }
+  }
+
+  if (log.timestamp !== undefined) {
+    const timestamp = Number(log.timestamp);
+
+    if (Number.isFinite(timestamp) && timestamp > 0) {
+      return timestamp;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Identifies the exact PriceUpdated log responsible for a Reactive event.
+ *
+ * PriceUpdated uses its own transaction hash and log index.
+ * TriggerEvaluated and CallbackRequested carry the originating coordinates.
+ */
+function getOriginKey(
+  eventName: string,
+  args: Record<string, unknown>,
+  log: NormalizedLog
+): string | undefined {
+  if (eventName === "PriceUpdated") {
+    return `${log.transactionHash.toLowerCase()}:${log.logIndex}`;
+  }
+
+  if (
+    eventName !== "TriggerEvaluated" &&
+    eventName !== "CallbackRequested"
+  ) {
+    return undefined;
+  }
+
+  const rawTx = args.originTxHash;
+  const rawIndex = args.originLogIndex;
+
+  if (
+    rawTx === undefined ||
+    rawTx === null ||
+    rawIndex === undefined ||
+    rawIndex === null
+  ) {
+    return undefined;
+  }
+
+  try {
+    const txHash = `0x${BigInt(rawTx as bigint | number | string)
+      .toString(16)
+      .padStart(64, "0")}`.toLowerCase();
+
+    return `${txHash}:${String(rawIndex)}`;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function fetchChainLogs(chainKey: string, address: string): Promise<NormalizedLog[]> {
@@ -158,7 +234,9 @@ export async function fetchProtocolEvents(): Promise<ProtocolEvent[]> {
             key: `${src.chain}-${log.transactionHash}-${log.logIndex}`,
             txHash: log.transactionHash,
             blockNumber: BigInt(log.blockNumber),
-            timestamp: log.timestamp === undefined ? undefined : Number(log.timestamp),
+            timestamp: getEventTimestamp(args, log),
+            logIndex: log.logIndex,
+            originKey: getOriginKey(eventName, args, log),
             chain: src.chain,
             source: src.label,
             eventName,
@@ -196,7 +274,9 @@ export async function fetchProtocolEvents(): Promise<ProtocolEvent[]> {
             key: `Reactive Lasna-${log.transactionHash}-${log.logIndex}`,
             txHash: log.transactionHash,
             blockNumber: BigInt(log.blockNumber),
-            timestamp: log.timestamp === undefined ? undefined : Number(log.timestamp),
+            timestamp: getEventTimestamp(args, log),
+            logIndex: log.logIndex,
+            originKey: getOriginKey(eventName, args, log),
             chain: "Reactive Lasna",
             source: "Reactive Contract",
             eventName,

@@ -41,7 +41,7 @@ export interface ProtocolAnalytics {
   recentEvents: ProtocolEvent[];
 }
 
-const EXECUTION_EVENTS = new Set(["ProtectionExecuted", "CrossChainProtectionRecorded", "ProtectedExit", "PolicyExecuted"]);
+const EXECUTION_EVENTS = new Set(["ProtectionExecuted"]);
 
 export function useProtocolAnalytics(refreshMs = 60_000): ProtocolAnalytics {
   const [events, setEvents] = useState<ProtocolEvent[]>([]);
@@ -91,7 +91,8 @@ export function useProtocolAnalytics(refreshMs = 60_000): ProtocolAnalytics {
       const group = e.eventName.startsWith("Policy") ? "Policy Lifecycle"
         : e.eventName === "PriceUpdated" ? "Price Updates"
         : EXECUTION_EVENTS.has(e.eventName) ? "Executions"
-        : e.eventName === "Deposited" || e.eventName === "Withdrawn" ? "Vault"
+        : e.eventName === "CrossChainProtectionRecorded" ? "Cross-chain Attestations"
+        : ["Deposited", "Withdrawn", "ProtectedExit"].includes(e.eventName) ? "Vault"
         : "Reactive";
       typeMap.set(group, (typeMap.get(group) ?? 0) + 1);
     }
@@ -113,7 +114,7 @@ export function useProtocolAnalytics(refreshMs = 60_000): ProtocolAnalytics {
     }
     other = events.filter((e) => e.eventName.startsWith("Policy") && !["PolicyCreated","PolicyExecuted","PolicyCancelled","PolicyExpired","PolicyActivated","PolicyDeactivated","PolicyMirrorSync"].includes(e.eventName)).length;
 
-    const executionCount = events.filter((e) => EXECUTION_EVENTS.has(e.eventName)).length;
+    const executionCount = events.filter((e) => e.eventName === "ProtectionExecuted" && e.chain === "Base Sepolia").length;
 
     // Token volumes
     let totalDeposited = 0n, totalWithdrawn = 0n, totalProtectedOut = 0n;
@@ -124,27 +125,115 @@ export function useProtocolAnalytics(refreshMs = 60_000): ProtocolAnalytics {
       else if (e.eventName === "ProtectedExit") totalProtectedOut += e.amount;
     }
 
-    // Latency: for each execution event, find the latest PriceUpdated before it
-    const priceEvents = events
-      .filter((e) => e.eventName === "PriceUpdated" && e.timestamp !== undefined)
-      .sort((a, b) => a.timestamp! - b.timestamp!);
-    const latencies: number[] = [];
+    // Latency correlation:
+    // PriceUpdated -> TriggerEvaluated / CallbackRequested -> ProtectionExecuted.
+    //
+    // The Reactive events carry the exact origin transaction hash and log index.
+    // This prevents unrelated price updates from being paired with executions.
+    const priceByOriginKey = new Map<string, ProtocolEvent>();
+
     for (const e of events) {
-      if (!EXECUTION_EVENTS.has(e.eventName) || e.timestamp === undefined) continue;
-      let priceTs: number | undefined;
-      for (const p of priceEvents) {
-        if (p.timestamp! <= e.timestamp!) priceTs = p.timestamp;
-        else break;
-      }
-      if (priceTs !== undefined) {
-        const delta = e.timestamp - priceTs;
-        if (delta >= 0 && delta < 86400) latencies.push(delta);
+      if (
+        e.eventName === "PriceUpdated" &&
+        e.originKey &&
+        e.timestamp !== undefined
+      ) {
+        priceByOriginKey.set(e.originKey, e);
       }
     }
+
+    // Keep all callbacks per policy because a policy can be deactivated and
+    // reactivated, producing another callback during a later activation cycle.
+    const callbacksByPolicy = new Map<string, ProtocolEvent[]>();
+
+    for (const e of events) {
+      if (
+        (e.eventName !== "CallbackRequested" &&
+          e.eventName !== "TriggerEvaluated") ||
+        !e.policyId ||
+        !e.originKey ||
+        e.timestamp === undefined
+      ) {
+        continue;
+      }
+
+      const callbacks = callbacksByPolicy.get(e.policyId) ?? [];
+      callbacks.push(e);
+      callbacksByPolicy.set(e.policyId, callbacks);
+    }
+
+    const latencies: number[] = [];
+
+    for (const execution of events) {
+      // Only measure successful Base protection executions.
+      if (
+        execution.eventName !== "ProtectionExecuted" ||
+        execution.chain !== "Base Sepolia" ||
+        !execution.policyId ||
+        execution.timestamp === undefined
+      ) {
+        continue;
+      }
+
+      const callbacks = callbacksByPolicy.get(execution.policyId) ?? [];
+
+      // Select the latest valid callback before this execution, and prefer
+      // CallbackRequested when both Reactive stages share the same timestamp.
+      const matchingCallbacks = callbacks
+        .filter((callback) => {
+          if (callback.timestamp === undefined) return false;
+          if (callback.timestamp > execution.timestamp!) return false;
+
+          const price = priceByOriginKey.get(callback.originKey!);
+
+          return (
+            price !== undefined &&
+            price.timestamp !== undefined &&
+            price.timestamp <= callback.timestamp!
+          );
+        })
+        .sort((a, b) => {
+          const timeDifference = b.timestamp! - a.timestamp!;
+
+          if (timeDifference !== 0) return timeDifference;
+
+          if (a.eventName === b.eventName) return 0;
+
+          return a.eventName === "CallbackRequested" ? -1 : 1;
+        });
+
+      const callback = matchingCallbacks[0];
+      if (!callback?.originKey) continue;
+
+      const price = priceByOriginKey.get(callback.originKey);
+
+      if (!price || price.timestamp === undefined || callback.timestamp === undefined) {
+        continue;
+      }
+
+      const originToReactive = callback.timestamp - price.timestamp;
+      const reactiveToDestination = execution.timestamp - callback.timestamp;
+      const totalLatency = execution.timestamp - price.timestamp;
+
+      // Reject invalid or implausibly long measurements.
+      if (
+        originToReactive < 0 ||
+        reactiveToDestination < 0 ||
+        totalLatency < 0 ||
+        totalLatency >= 86400
+      ) {
+        continue;
+      }
+
+      latencies.push(totalLatency);
+    }
+
     const latency: LatencyStats | null = latencies.length
       ? {
           count: latencies.length,
-          avg: Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length),
+          avg: Math.round(
+            latencies.reduce((total, value) => total + value, 0) / latencies.length
+          ),
           min: Math.min(...latencies),
           max: Math.max(...latencies),
         }

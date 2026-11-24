@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { usePriceFeed } from "@/hooks/useContracts";

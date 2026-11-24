@@ -81,7 +81,7 @@ const EVENT_ALLOWLIST = new Set([
 
 const TRIGGER_NAMES = ["STOP_LOSS", "TAKE_PROFIT", "MAX_DRAWDOWN", "EMERGENCY"];
 
-const EXECUTION_EVENTS = new Set(["ProtectionExecuted", "CrossChainProtectionRecorded", "ProtectedExit"]);
+const EXECUTION_EVENTS = new Set(["ProtectionExecuted"]);
 
 function fmtLatency(seconds: number): string {
   return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
@@ -141,13 +141,13 @@ function originKeyFor(
   log: NormalizedLog
 ): string | undefined {
   if (eventName === "PriceUpdated") {
-    return `${log.transactionHash}:${log.logIndex}`;
+    return `${log.transactionHash.toLowerCase()}:${log.logIndex}`;
   }
   if (eventName === "TriggerEvaluated" || eventName === "CallbackRequested") {
     const rawTx = args.originTxHash;
     const rawIdx = args.originLogIndex;
     if (rawTx === undefined || rawTx === null || rawIdx === undefined || rawIdx === null) return undefined;
-    const txHash = `0x${BigInt(rawTx as bigint | number | string).toString(16).padStart(64, "0")}` as `0x${string}`;
+    const txHash = `0x${BigInt(rawTx as bigint | number | string).toString(16).padStart(64, "0")}`.toLowerCase();
     return `${txHash}:${String(rawIdx)}`;
   }
   return undefined;
@@ -315,14 +315,123 @@ export default function ActivityPage() {
         // Correlate executions to their originating PriceUpdated via the
         // originTxHash/originLogIndex carried by TriggerEvaluated/CallbackRequested.
         // Fallback for pre-upgrade events: latest PriceUpdated before the callback.
+
+
+        // Correlate successful Base executions with their exact originating
+        // PriceUpdated event through Reactive's origin transaction coordinates.
+
         const priceByOriginKey = new Map<string, ActivityEvent>();
+
         const priceEvents = collected
-          .filter((e) => e.eventName === "PriceUpdated" && e.timestamp !== undefined)
+          .filter(
+            (e) =>
+              e.eventName === "PriceUpdated" &&
+              e.timestamp !== undefined
+          )
           .sort((a, b) => Number(a.timestamp! - b.timestamp!));
-        for (const p of priceEvents) {
-          if (p.txHash && p.logIndex !== undefined) {
-            priceByOriginKey.set(`${p.txHash}:${p.logIndex}`, p);
+
+        for (const price of priceEvents) {
+          if (price.txHash && price.logIndex !== undefined) {
+            priceByOriginKey.set(
+              `${price.txHash.toLowerCase()}:${String(price.logIndex)}`,
+              price
+            );
           }
+        }
+
+        // Keep every callback for each policy because a policy can be
+        // deactivated and reactivated across multiple protection cycles.
+        const callbacksByPolicy = new Map<string, ActivityEvent[]>();
+
+        for (const event of collected) {
+          if (
+            (event.eventName !== "CallbackRequested" &&
+              event.eventName !== "TriggerEvaluated") ||
+            !event.policyId ||
+            !event.originKey ||
+            event.timestamp === undefined
+          ) {
+            continue;
+          }
+
+          const callbacks = callbacksByPolicy.get(event.policyId) ?? [];
+          callbacks.push(event);
+          callbacksByPolicy.set(event.policyId, callbacks);
+        }
+
+        for (const execution of collected) {
+          // Only successful protection executions on Base count.
+          if (
+            execution.eventName !== "ProtectionExecuted" ||
+            execution.chain !== "Base Sepolia" ||
+            !execution.policyId ||
+            execution.timestamp === undefined
+          ) {
+            continue;
+          }
+
+          const callbacks = callbacksByPolicy.get(execution.policyId) ?? [];
+
+          // Find callbacks whose exact originating price event exists and
+          // whose timestamps precede this successful execution.
+          const matchingCallbacks = callbacks
+            .filter((callback) => {
+              if (
+                callback.timestamp === undefined ||
+                callback.timestamp > execution.timestamp!
+              ) {
+                return false;
+              }
+
+              const price = priceByOriginKey.get(callback.originKey!);
+
+              return (
+                price !== undefined &&
+                price.timestamp !== undefined &&
+                price.timestamp <= callback.timestamp!
+              );
+            })
+            .sort((a, b) => {
+              const timeDifference = b.timestamp! - a.timestamp!;
+
+              if (timeDifference !== 0n) {
+                return timeDifference > 0n ? 1 : -1;
+              }
+
+              if (a.eventName === b.eventName) return 0;
+
+              return a.eventName === "CallbackRequested" ? -1 : 1;
+            });
+
+          const callback = matchingCallbacks[0];
+
+          if (!callback?.originKey || callback.timestamp === undefined) {
+            continue;
+          }
+
+          const price = priceByOriginKey.get(callback.originKey);
+
+          if (!price || price.timestamp === undefined) {
+            continue;
+          }
+
+          const originToReactive = callback.timestamp - price.timestamp;
+          const reactiveToDestination = execution.timestamp - callback.timestamp;
+          const totalLatency = execution.timestamp - price.timestamp;
+
+          // Reject invalid or implausibly long measurements.
+          if (
+            originToReactive < 0n ||
+            reactiveToDestination < 0n ||
+            totalLatency < 0n ||
+            totalLatency >= 86400n
+          ) {
+            continue;
+          }
+
+          execution.latencyOriginToReactive = Number(originToReactive);
+          execution.latencyReactiveToDest = Number(reactiveToDestination);
+          execution.latencyTotal = Number(totalLatency);
         }
 
         // policyId -> { callback event, origin price event }

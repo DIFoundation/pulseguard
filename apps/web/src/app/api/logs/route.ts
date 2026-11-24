@@ -276,6 +276,15 @@ async function fetchExplorerLogs(chain: string, address: string, fromBlock: bigi
       if (explorerHeadInFlight.get(chain) === headRequest) explorerHeadInFlight.delete(chain);
     }
   }
+
+  console.info("[logs:explorer] scan starting", {
+    chain,
+    address,
+    fromBlock: fromBlock.toString(),
+    latest: latest.toString(),
+    fromBlockExceedsLatest: fromBlock > latest,
+  });
+
   if (fromBlock > latest) return { logs: [], latest };
 
   const logs: NormalizedLog[] = [];
@@ -308,6 +317,15 @@ async function fetchExplorerLogs(chain: string, address: string, fromBlock: bigi
     if (pageLogs.length < 1000) break;
     if (page === 10) throw new Error(`${explorer.name} log result exceeds the pagination limit`);
   }
+
+  console.info("[logs:explorer] scan completed", {
+    chain,
+    address,
+    count: logs.length,
+    firstBlock: logs[0]?.blockNumber ?? null,
+    lastBlock: logs[logs.length - 1]?.blockNumber ?? null,
+  });
+
   return { logs, latest };
 }
 
@@ -391,7 +409,10 @@ async function fetchLogs(chain: string, address: string, fromBlock: bigint): Pro
   if (EXPLORER_BY_CHAIN[chain]?.apiKey) {
     try {
       return await fetchExplorerLogs(chain, address, fromBlock);
-    } catch {
+    } catch (error) {
+      const explorerName = EXPLORER_BY_CHAIN[chain]?.name ?? "Explorer";
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[logs] ${explorerName} failed for ${chain}:${address}`, message);
       // RPC candidates below provide a path through if the explorer is down.
     }
   }
@@ -473,9 +494,15 @@ export async function GET(req: Request) {
       const { logs: newLogs, latest } = await fetchLogs(chain, address, fromBlock);
 
     // Merge + dedupe by (txHash, logIndex); keep only logs inside the window.
-    const windowStart = latest > SCAN_BLOCKS ? latest - SCAN_BLOCKS : 0n;
+    // Preserve the complete history for deployed contracts.
+    // Use the bounded scan window only when no deployment block is available.
+    const earliestBlock = deploymentBlock(chain, address);
+
+    const windowStart = earliestBlock ?? (latest > SCAN_BLOCKS ? latest - SCAN_BLOCKS : 0n);
+
     const seen = new Set<string>();
     const merged: NormalizedLog[] = [];
+
     const all = fresh && !needsTimestampBackfill ? [...state.logs, ...newLogs] : newLogs;
     for (const l of all) {
       if (BigInt(l.blockNumber) < windowStart) continue;

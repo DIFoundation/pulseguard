@@ -126,6 +126,7 @@ interface NormalizedLog {
   logIndex: string;
   topics: string[];
   data: string;
+  timestamp?: string;
 }
 
 /**
@@ -182,7 +183,8 @@ export default function ActivityPage() {
       try {
         const collected: ActivityEvent[] = [];
 
-        await Promise.all(
+        // Keep the activity feed useful when an individual chain is degraded.
+        const sourceResults = await Promise.allSettled(
           SOURCES.map(async (src) => {
             const info = deployments[src.envKey];
             if (!info.address) return;
@@ -201,6 +203,7 @@ export default function ActivityPage() {
                   key: `${src.chain}-${log.transactionHash}-${log.logIndex}`,
                   txHash: log.transactionHash,
                   blockNumber: BigInt(log.blockNumber),
+                  timestamp: log.timestamp === undefined ? undefined : BigInt(log.timestamp),
                   chain: src.chain,
                   explorer: src.explorer,
                   source: src.label,
@@ -216,6 +219,9 @@ export default function ActivityPage() {
             }
           })
         );
+        for (const result of sourceResults) {
+          if (result.status === "rejected") console.warn("Activity log fetch failed", result.reason);
+        }
 
         // Reactive Lasna: fetched via the unified server-side proxy — browser
         // RPC getLogs was unreliable (CORS/rate-limit on ranges).
@@ -238,6 +244,7 @@ export default function ActivityPage() {
                   key: `Reactive Lasna-${log.transactionHash}-${log.logIndex}`,
                   txHash: log.transactionHash,
                   blockNumber: BigInt(log.blockNumber),
+                  timestamp: log.timestamp === undefined ? undefined : BigInt(log.timestamp),
                   chain: "Reactive Lasna",
                   explorer: LASNA_EXPLORER,
                   source: "Reactive Contract",
@@ -281,6 +288,7 @@ export default function ActivityPage() {
         const jobs: { chain: string; bn: bigint }[] = [];
         const seen = new Set<string>();
         for (const e of candidates) {
+          if (e.timestamp !== undefined) continue;
           const key = `${e.chain}:${e.blockNumber}`;
           if (seen.has(key)) continue;
           seen.add(key);
@@ -301,7 +309,7 @@ export default function ActivityPage() {
           );
         }
         for (const e of candidates) {
-          e.timestamp = tsByBlock.get(`${e.chain}:${e.blockNumber}`);
+          if (e.timestamp === undefined) e.timestamp = tsByBlock.get(`${e.chain}:${e.blockNumber}`);
         }
 
         // Correlate executions to their originating PriceUpdated via the

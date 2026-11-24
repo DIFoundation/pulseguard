@@ -26,6 +26,20 @@ const RPC_CANDIDATES: Record<string, string[]> = {
   ),
 };
 
+const ETHERSCAN_V2_API = "https://api.etherscan.io/v2/api";
+const EXPLORER_BY_CHAIN: Record<string, { chainId: string; apiKey?: string; name: string }> = {
+  base: {
+    chainId: "84532",
+    apiKey: process.env.BASESCAN_API_KEY ?? process.env.ETHERSCAN_API_KEY,
+    name: "BaseScan",
+  },
+  uni: {
+    chainId: "1301",
+    apiKey: process.env.UNISCAN_API_KEY ?? process.env.ETHERSCAN_API_KEY,
+    name: "Uniscan",
+  },
+};
+
 /// @dev Address allowlist per chain — only known PulseGuard contracts may be
 ///      scanned. Prevents the endpoint being used as a free eth_getLogs proxy
 ///      for arbitrary addresses (which would burn RPC quota).
@@ -80,11 +94,18 @@ const ALLOWED_ADDRESSES: Record<string, Set<string>> = (() => {
   };
 })();
 
-/// How far back to scan. Base/Unichain Sepolia ~2s blocks → 200k ≈ 4.6 days,
-/// covers the Nov 14–17 deployment + demo window. Lasna ~4 blocks/s → 200k ≈ 14h.
+/// Fallback history window when no deployment block is available. Known
+/// contracts use their deployment block instead: requesting blocks from before
+/// a contract existed is both wasteful and commonly rejected by pruned public
+/// RPC nodes.
 const SCAN_BLOCKS = 200_000n;
 const CHUNK = 10_000n;
-const CONCURRENCY = 8;
+const CONCURRENCY = 4;
+const RPC_TIMEOUT_SECONDS = 30;
+const EXPLORER_TIMEOUT_SECONDS = 15;
+// Return an already-indexed response immediately during normal page refreshes.
+// A later request performs the inexpensive incremental sync.
+const RESPONSE_CACHE_MS = 15_000;
 
 /// @dev Simple per-IP rate limit: RATE_LIMIT requests per RATE_WINDOW_MS.
 ///      In-memory — sufficient for a single-instance deployment; swap for a
@@ -99,6 +120,8 @@ export interface NormalizedLog {
   logIndex: string;
   topics: string[];
   data: string;
+  /** Unix seconds when supplied by an indexed explorer. */
+  timestamp?: string;
 }
 
 interface RpcLog {
@@ -110,6 +133,44 @@ interface RpcLog {
 }
 
 const ADDR_RE = /^0x[0-9a-fA-F]{40}$/;
+
+/// Earliest useful block for each deployed contract. Keep this alongside the
+/// allowlist, but deliberately derive it from deployment artifacts rather than
+/// duplicating block numbers in source.
+const DEPLOYMENT_BLOCKS: Record<string, bigint> = (() => {
+  const blocks: Record<string, bigint> = {};
+  try {
+    const candidates = [
+      path.resolve(process.cwd(), "../../deployments"),
+      path.resolve(process.cwd(), "../../../deployments"),
+    ];
+    for (const dir of candidates) {
+      for (const file of ["base-sepolia.json", "unichain-sepolia.json", "reactive-lasna.json"]) {
+        try {
+          const raw = fs.readFileSync(path.join(dir, file), "utf8");
+          const json = JSON.parse(raw) as { contracts?: Record<string, { address?: string; block?: number | string }> };
+          for (const contract of Object.values(json.contracts ?? {})) {
+            if (!contract.address || contract.block === undefined) continue;
+            blocks[`${file}:${contract.address.toLowerCase()}`] = BigInt(contract.block);
+          }
+        } catch { /* file absent or incomplete — use the bounded fallback */ }
+      }
+      if (fs.existsSync(dir)) break;
+    }
+  } catch { /* deployment artifacts unavailable — use the bounded fallback */ }
+  return blocks;
+})();
+
+function deploymentBlock(chain: string, address: string): bigint | undefined {
+  const file = chain === "base"
+    ? "base-sepolia.json"
+    : chain === "uni"
+      ? "unichain-sepolia.json"
+      : chain === "lasna"
+        ? "reactive-lasna.json"
+        : undefined;
+  return file ? DEPLOYMENT_BLOCKS[`${file}:${address.toLowerCase()}`] : undefined;
+}
 
 function err(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -130,14 +191,124 @@ function rateLimited(ip: string): boolean {
 ///      clients and rejects Node's fetch (undici); curl works everywhere.
 async function rpcCall(url: string, method: string, params: unknown[]): Promise<unknown> {
   const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method, params });
-  const { stdout } = await execFileAsync(
-    "curl",
-    ["-s", "-m", "30", "-X", "POST", url, "-H", "content-type: application/json", "-d", body],
-    { maxBuffer: 32 * 1024 * 1024 }
-  );
+  let stdout: string;
+  try {
+    ({ stdout } = await execFileAsync(
+      "curl",
+      ["-sS", "--connect-timeout", "3", "-m", String(RPC_TIMEOUT_SECONDS), "-X", "POST", url, "-H", "content-type: application/json", "-d", body],
+      { maxBuffer: 32 * 1024 * 1024 }
+    ));
+  } catch {
+    // Do not include the command in the client response: an RPC URL can carry
+    // an access token.
+    throw new Error("RPC request failed");
+  }
   const json = JSON.parse(stdout) as { result?: unknown; error?: { message: string } };
   if (json.error) throw new Error(json.error.message);
   return json.result;
+}
+
+interface ExplorerLog {
+  blockNumber: string;
+  transactionHash: `0x${string}`;
+  logIndex: string;
+  topics?: string[];
+  data?: string;
+  timeStamp?: string;
+}
+
+function decimalQuantity(value: string): string {
+  // Etherscan currently serializes a zero log index as the non-standard "0x".
+  return BigInt(value === "0x" ? "0x0" : value).toString();
+}
+
+interface ExplorerHead {
+  latest: bigint;
+  at: number;
+}
+const explorerHeads = new Map<string, ExplorerHead>();
+const explorerHeadInFlight = new Map<string, Promise<bigint>>();
+
+/// Etherscan's indexed APIs are independent of RPC archival retention. Use
+/// them per chain when a key is configured; JSON-RPC remains a fallback.
+async function fetchExplorerLogs(chain: string, address: string, fromBlock: bigint): Promise<{ logs: NormalizedLog[]; latest: bigint }> {
+  const explorer = EXPLORER_BY_CHAIN[chain];
+  const apiKey = explorer?.apiKey;
+  if (!explorer || !apiKey) throw new Error(`No explorer API key configured for ${chain}`);
+
+  const call = async (params: Record<string, string>) => {
+    const url = new URL(ETHERSCAN_V2_API);
+    url.search = new URLSearchParams({ chainid: explorer.chainId, apikey: apiKey, ...params }).toString();
+    let stdout: string;
+    try {
+      ({ stdout } = await execFileAsync(
+        "curl",
+        ["-sS", "--connect-timeout", "3", "-m", String(EXPLORER_TIMEOUT_SECONDS), url.toString()],
+        { maxBuffer: 32 * 1024 * 1024 }
+      ));
+    } catch {
+      throw new Error(`${explorer.name} request failed`);
+    }
+    return JSON.parse(stdout) as { result?: unknown; status?: string; message?: string };
+  };
+
+  const cachedHead = explorerHeads.get(chain);
+  let latest: bigint;
+  if (cachedHead && Date.now() - cachedHead.at < RESPONSE_CACHE_MS) {
+    latest = cachedHead.latest;
+  } else {
+    let headRequest = explorerHeadInFlight.get(chain);
+    if (!headRequest) {
+      headRequest = (async () => {
+        const blockResponse = await call({ module: "proxy", action: "eth_blockNumber" });
+        if (typeof blockResponse.result !== "string" || !blockResponse.result.startsWith("0x")) {
+          throw new Error(`${explorer.name} did not return a block number`);
+        }
+        const head = BigInt(blockResponse.result);
+        explorerHeads.set(chain, { latest: head, at: Date.now() });
+        return head;
+      })();
+      explorerHeadInFlight.set(chain, headRequest);
+    }
+    try {
+      latest = await headRequest;
+    } finally {
+      if (explorerHeadInFlight.get(chain) === headRequest) explorerHeadInFlight.delete(chain);
+    }
+  }
+  if (fromBlock > latest) return { logs: [], latest };
+
+  const logs: NormalizedLog[] = [];
+  for (let page = 1; page <= 10; page++) {
+    const response = await call({
+      module: "logs",
+      action: "getLogs",
+      address,
+      fromBlock: fromBlock.toString(),
+      toBlock: latest.toString(),
+      page: String(page),
+      offset: "1000",
+    });
+    if (response.status === "0") {
+      if (response.message === "No records found" && page === 1) break;
+      throw new Error(typeof response.result === "string" ? response.result : `${explorer.name} log request failed`);
+    }
+    if (!Array.isArray(response.result)) throw new Error(`${explorer.name} returned an invalid log response`);
+    const pageLogs = response.result as ExplorerLog[];
+    for (const l of pageLogs) {
+      logs.push({
+        blockNumber: decimalQuantity(l.blockNumber),
+        transactionHash: l.transactionHash,
+        logIndex: decimalQuantity(l.logIndex),
+        topics: l.topics ?? [],
+        data: l.data ?? "0x",
+        timestamp: l.timeStamp === undefined ? undefined : decimalQuantity(l.timeStamp),
+      });
+    }
+    if (pageLogs.length < 1000) break;
+    if (page === 10) throw new Error(`${explorer.name} log result exceeds the pagination limit`);
+  }
+  return { logs, latest };
 }
 
 /// @dev Incremental index: per (chain,address) we keep the merged log set and
@@ -174,9 +345,25 @@ async function scanLogs(rpcUrl: string, address: string, fromBlock: bigint): Pro
   }
 
   const logs: NormalizedLog[] = [];
-  for (let i = 0; i < ranges.length; i += CONCURRENCY) {
+
+  // Probe the oldest requested range before starting parallel work. Archive
+  // gaps ("pruned history unavailable") are deterministic; discovering one
+  // with a single request lets fetchLogs advance to the next provider instead
+  // of launching an entire batch of doomed requests.
+  const [first, ...remaining] = ranges;
+  const firstLogs = await rpcCall(rpcUrl, "eth_getLogs", [{ address, ...first }]) as RpcLog[];
+  for (const l of firstLogs) {
+    logs.push({
+      blockNumber: BigInt(l.blockNumber).toString(),
+      transactionHash: l.transactionHash,
+      logIndex: BigInt(l.logIndex).toString(),
+      topics: l.topics ?? [],
+      data: l.data ?? "0x",
+    });
+  }
+  for (let i = 0; i < remaining.length; i += CONCURRENCY) {
     const batch = await Promise.all(
-      ranges.slice(i, i + CONCURRENCY).map((r) =>
+      remaining.slice(i, i + CONCURRENCY).map((r) =>
         rpcCall(rpcUrl, "eth_getLogs", [{ address, ...r }]) as Promise<RpcLog[]>
       )
     );
@@ -196,10 +383,19 @@ async function scanLogs(rpcUrl: string, address: string, fromBlock: bigint): Pro
 }
 
 const workingRpc = new Map<string, string>();
+const inFlight = new Map<string, Promise<NextResponse>>();
 
 /// @dev Try each candidate RPC until one completes the scan; cache the winner
 ///      so subsequent requests skip the failing endpoints.
 async function fetchLogs(chain: string, address: string, fromBlock: bigint): Promise<{ logs: NormalizedLog[]; latest: bigint }> {
+  if (EXPLORER_BY_CHAIN[chain]?.apiKey) {
+    try {
+      return await fetchExplorerLogs(chain, address, fromBlock);
+    } catch {
+      // RPC candidates below provide a path through if the explorer is down.
+    }
+  }
+
   const candidates = RPC_CANDIDATES[chain];
   if (!candidates?.length) throw new Error(`no RPC configured for chain ${chain}`);
 
@@ -250,19 +446,37 @@ export async function GET(req: Request) {
   const cacheKey = `${chain}:${address.toLowerCase()}`;
   const state = indexStore.get(cacheKey);
   const fresh = state && Date.now() - state.at < INDEX_MAX_AGE_MS;
+  // Index entries built before explorer timestamps were introduced need one
+  // full refresh. Without this, incremental scans never revisit historic
+  // price/policy logs and the dashboard cannot chart or time them.
+  const needsTimestampBackfill = Boolean(
+    state
+      && EXPLORER_BY_CHAIN[chain]?.apiKey
+      && state.logs.some((log) => log.timestamp === undefined)
+  );
 
-  // Incremental: only scan blocks after lastBlock. Full rescan when there is
-  // no state or the index is stale.
-  const fromBlock = fresh ? state.lastBlock + 1n : 0n;
+  if (state && !needsTimestampBackfill && Date.now() - state.at < RESPONSE_CACHE_MS) {
+    return NextResponse.json({ logs: state.logs, incremental: true, cached: true });
+  }
 
-  try {
-    const { logs: newLogs, latest } = await fetchLogs(chain, address, fromBlock);
+  const running = inFlight.get(cacheKey);
+  if (running) return (await running).clone();
+
+  const job = (async (): Promise<NextResponse> => {
+    // Incremental: only scan blocks after lastBlock. A cold/stale scan starts
+    // at deployment, never at a provider's pruned pre-deployment history.
+    const fromBlock = fresh && !needsTimestampBackfill
+      ? state.lastBlock + 1n
+      : deploymentBlock(chain, address) ?? 0n;
+
+    try {
+      const { logs: newLogs, latest } = await fetchLogs(chain, address, fromBlock);
 
     // Merge + dedupe by (txHash, logIndex); keep only logs inside the window.
     const windowStart = latest > SCAN_BLOCKS ? latest - SCAN_BLOCKS : 0n;
     const seen = new Set<string>();
     const merged: NormalizedLog[] = [];
-    const all = fresh ? [...state.logs, ...newLogs] : newLogs;
+    const all = fresh && !needsTimestampBackfill ? [...state.logs, ...newLogs] : newLogs;
     for (const l of all) {
       if (BigInt(l.blockNumber) < windowStart) continue;
       const k = `${l.transactionHash}:${l.logIndex}`;
@@ -272,10 +486,18 @@ export async function GET(req: Request) {
     }
     merged.sort((a, b) => Number(BigInt(a.blockNumber) - BigInt(b.blockNumber)) || Number(BigInt(a.logIndex) - BigInt(b.logIndex)));
 
-    indexStore.set(cacheKey, { logs: merged, lastBlock: latest, at: Date.now() });
-    return NextResponse.json({ logs: merged, incremental: fresh });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return err("RPC_ERROR", message.slice(0, 200), 502);
+      indexStore.set(cacheKey, { logs: merged, lastBlock: latest, at: Date.now() });
+      return NextResponse.json({ logs: merged, incremental: fresh });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return err("RPC_ERROR", message.slice(0, 200), 502);
+    }
+  })();
+
+  inFlight.set(cacheKey, job);
+  try {
+    return await job;
+  } finally {
+    if (inFlight.get(cacheKey) === job) inFlight.delete(cacheKey);
   }
 }

@@ -106,6 +106,7 @@ interface NormalizedLog {
   logIndex: string;
   topics: string[];
   data: string;
+  timestamp?: string;
 }
 
 export async function fetchChainLogs(chainKey: string, address: string): Promise<NormalizedLog[]> {
@@ -136,7 +137,9 @@ export async function fetchChainLogs(chainKey: string, address: string): Promise
 export async function fetchProtocolEvents(): Promise<ProtocolEvent[]> {
   const collected: ProtocolEvent[] = [];
 
-  await Promise.all(
+  // A provider failure on one chain must not hide events already available
+  // from the others.
+  const sourceResults = await Promise.allSettled(
     SOURCES.map(async (src) => {
       const info = deployments[src.envKey];
       if (!info.address) return;
@@ -155,6 +158,7 @@ export async function fetchProtocolEvents(): Promise<ProtocolEvent[]> {
             key: `${src.chain}-${log.transactionHash}-${log.logIndex}`,
             txHash: log.transactionHash,
             blockNumber: BigInt(log.blockNumber),
+            timestamp: log.timestamp === undefined ? undefined : Number(log.timestamp),
             chain: src.chain,
             source: src.label,
             eventName,
@@ -169,6 +173,9 @@ export async function fetchProtocolEvents(): Promise<ProtocolEvent[]> {
       }
     })
   );
+  for (const result of sourceResults) {
+    if (result.status === "rejected") console.warn("Protocol log fetch failed", result.reason);
+  }
 
   // Lasna reactive events
   const reactiveAddr = deployments.reactive.address as `0x${string}`;
@@ -189,6 +196,7 @@ export async function fetchProtocolEvents(): Promise<ProtocolEvent[]> {
             key: `Reactive Lasna-${log.transactionHash}-${log.logIndex}`,
             txHash: log.transactionHash,
             blockNumber: BigInt(log.blockNumber),
+            timestamp: log.timestamp === undefined ? undefined : Number(log.timestamp),
             chain: "Reactive Lasna",
             source: "Reactive Contract",
             eventName,
@@ -212,6 +220,7 @@ export async function fetchProtocolEvents(): Promise<ProtocolEvent[]> {
   };
   const uniqueBlocks = new Map<string, bigint>();
   for (const e of collected) {
+    if (e.timestamp !== undefined) continue;
     const k = `${e.chain}:${e.blockNumber}`;
     if (!uniqueBlocks.has(k)) uniqueBlocks.set(k, e.blockNumber);
   }

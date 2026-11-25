@@ -128,7 +128,7 @@ export default function LandingPage() {
               style={{ animationDelay: "0.15s" }}
             >
               {/* Diagram toolbar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-foreground/[0.025] px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-foreground/2.5 px-5 py-4">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-full bg-danger/70" />
@@ -154,7 +154,7 @@ export default function LandingPage() {
                 <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_104px_minmax(0,1fr)_104px_minmax(0,1fr)]">
 
                   {/* BASE */}
-                  <div className="relative flex flex-col overflow-hidden rounded-2xl border border-blue-500/25 bg-gradient-to-b from-blue-500/[0.09] to-transparent">
+                  <div className="relative flex flex-col overflow-hidden rounded-2xl border border-blue-500/25 bg-linear-to-b from-blue-500/9 to-transparent">
                     <div className="border-b border-blue-500/15 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -220,7 +220,7 @@ export default function LandingPage() {
                         <div className="h-px flex-1 bg-blue-500/20" />
                       </div>
 
-                      <div className="rounded-xl border border-blue-400/25 bg-blue-500/[0.08] p-3">
+                      <div className="rounded-xl border border-blue-400/25 bg-blue-500/8 p-3">
                         <div className="flex items-center gap-2">
                           <Zap className="h-4 w-4 text-blue-400" />
                           <p className="text-xs font-semibold">Protection Executor</p>
@@ -246,14 +246,14 @@ export default function LandingPage() {
                   {/* BASE <-> REACTIVE CONNECTION */}
                   <div className="flex flex-col items-center justify-center gap-3 py-2 lg:py-0">
                     <div className="flex w-full items-center justify-center gap-2 lg:flex-col">
-                      <div className="flex items-center gap-1.5 rounded-lg border border-blue-500/20 bg-blue-500/[0.06] px-2.5 py-2">
+                      <div className="flex items-center gap-1.5 rounded-lg border border-blue-500/20 bg-blue-500/6 px-2.5 py-2">
                         <span className="text-[9px] font-medium text-blue-400">
                           Events
                         </span>
                         <ArrowRight className="h-3.5 w-3.5 text-blue-400" />
                       </div>
-                      <div className="hidden h-8 w-px bg-gradient-to-b from-blue-400/50 to-violet-400/50 lg:block" />
-                      <div className="flex items-center gap-1.5 rounded-lg border border-violet-500/20 bg-violet-500/[0.06] px-2.5 py-2">
+                      <div className="hidden h-8 w-px bg-linear-to-b from-blue-400/50 to-violet-400/50 lg:block" />
+                      <div className="flex items-center gap-1.5 rounded-lg border border-violet-500/20 bg-violet-500/6 px-2.5 py-2">
                         <ArrowRight className="h-3.5 w-3.5 rotate-180 text-violet-400" />
                         <span className="text-[9px] font-medium text-violet-400">
                           Callback
@@ -268,7 +268,7 @@ export default function LandingPage() {
                   </div>
 
                   {/* REACTIVE */}
-                  <div className="relative flex flex-col overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-b from-violet-500/[0.12] via-violet-500/[0.04] to-transparent">
+                  <div className="relative flex flex-col overflow-hidden rounded-2xl border border-violet-500/30 bg-linear-to-b from-violet-500/12 via-violet-500/4 to-transparent">
                     <div className="border-b border-violet-500/20 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -289,7 +289,7 @@ export default function LandingPage() {
                     </div>
 
                     <div className="flex flex-1 flex-col justify-center p-4">
-                      <div className="rounded-xl border border-violet-400/25 bg-violet-500/[0.08] p-4">
+                      <div className="rounded-xl border border-violet-400/25 bg-violet-500/8 p-4">
                         <div className="flex items-center gap-2">
                           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15">
                             <Zap className="h-4 w-4 text-violet-400" />
@@ -351,7 +351,7 @@ export default function LandingPage() {
 
                   {/* REACTIVE -> UNICHAIN CONNECTION */}
                   <div className="flex flex-col items-center justify-center gap-2 py-2 lg:py-0">
-                    <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2">
+                    <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/6 px-3 py-2">
                       <ArrowRight className="h-3.5 w-3.5 text-emerald-400" />
                       <span className="text-[9px] font-medium text-emerald-400">
                         Callback
@@ -365,7 +365,7 @@ export default function LandingPage() {
                   </div>
 
                   {/* UNICHAIN */}
-                  <div className="relative flex flex-col overflow-hidden rounded-2xl border border-emerald-500/25 bg-gradient-to-b from-emerald-500/[0.09] to-transparent">
+                  <div className="relative flex flex-col overflow-hidden rounded-2xl border border-emerald-500/25 bg-linear-to-b from-emerald-500/9 to-transparent">
                     <div className="border-b border-emerald-500/15 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -398,7 +398,7 @@ export default function LandingPage() {
                           protection attestation on Unichain.
                         </p>
 
-                        <div className="mt-4 rounded-lg border border-emerald-500/15 bg-emerald-500/[0.06] p-3">
+                        <div className="mt-4 rounded-lg border border-emerald-500/15 bg-emerald-500/6 p-3">
                           <p className="text-[10px] font-semibold text-emerald-400">
                             CrossChainProtectionRecorded
                           </p>
@@ -408,7 +408,7 @@ export default function LandingPage() {
                         </div>
                       </div>
 
-                      <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-500/15 bg-emerald-500/[0.05] px-3 py-2.5">
+                      <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-3 py-2.5">
                         <Shield className="h-4 w-4 shrink-0 text-emerald-400" />
                         <p className="text-[10px] leading-relaxed text-foreground/50">
                           Records an attestation — does not move Base assets.
@@ -449,7 +449,7 @@ export default function LandingPage() {
               </div>
 
               {/* Architecture explanation */}
-              <div className="grid gap-4 border-t border-border/60 bg-foreground/[0.025] p-5 md:grid-cols-2 md:p-6">
+              <div className="grid gap-4 border-t border-border/60 bg-foreground/2.5 p-5 md:grid-cols-2 md:p-6">
                 <div>
                   <p className="text-xs font-semibold">How protection flows</p>
                   <p className="mt-1.5 text-xs leading-relaxed text-foreground/50">
